@@ -828,7 +828,7 @@ export default function DesignStep({
                   }
                   className="h-4 w-4 accent-amber-400"
                 />
-                Price as letters
+                Built as channel letters
               </label>
               {selected.priceAsLetters && (
                 <>
