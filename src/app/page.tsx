@@ -23,6 +23,15 @@ import {
   ProjectSummary,
   saveProject,
 } from "@/lib/store";
+import {
+  deleteProjectCloud,
+  getProjectCloud,
+  listProjectsCloud,
+  saveProjectCloud,
+  urlToImage,
+} from "@/lib/cloud";
+
+type ListedProject = ProjectSummary & { local?: boolean };
 
 const MeasureStep = dynamic(() => import("@/components/MeasureStep"), { ssr: false });
 const DesignStep = dynamic(() => import("@/components/DesignStep"), { ssr: false });
@@ -38,7 +47,7 @@ const STEPS: { key: Step; label: string }[] = [
 
 export default function Home() {
   const [screen, setScreen] = useState<"home" | "work">("home");
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projects, setProjects] = useState<ListedProject[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
   const [loadingProject, setLoadingProject] = useState(false);
@@ -91,8 +100,21 @@ export default function Home() {
 
   const ipp = inchesPerPixel(measurement);
 
-  const refreshProjects = useCallback(() => {
-    listProjects().then(setProjects).catch(() => {});
+  // Cloud list is the shared truth; local IndexedDB projects that haven't
+  // reached the cloud yet appear with a "this device" badge.
+  const refreshProjects = useCallback(async () => {
+    const [cloud, local] = await Promise.all([
+      listProjectsCloud().catch(() => null),
+      listProjects().catch(() => [] as ProjectSummary[]),
+    ]);
+    const cloudList: ListedProject[] = cloud ?? [];
+    const cloudIds = new Set(cloudList.map((p) => p.id));
+    const localOnly: ListedProject[] = local
+      .filter((p) => !cloudIds.has(p.id))
+      .map((p) => ({ ...p, local: true }));
+    setProjects(
+      [...cloudList, ...localOnly].sort((a, b) => b.updatedAt - a.updatedAt)
+    );
   }, []);
 
   useEffect(() => {
@@ -105,27 +127,41 @@ export default function Home() {
     if (screen !== "work" || !projectId || !original || loadingProject) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
+      const base = {
+        id: projectId,
+        name: projectName || "Untitled project",
+        updatedAt: Date.now(),
+        thumbnail: makeThumbnail(corrected ?? original),
+        squareParams,
+        measurement,
+        elements,
+        backerPlates,
+        step,
+      };
       try {
-        const [originalBlob, correctedBlob] = await Promise.all([
-          dataUrlToBlob(original.src),
-          corrected ? dataUrlToBlob(corrected.src) : Promise.resolve(undefined),
-        ]);
-        await saveProject({
-          id: projectId,
-          name: projectName || "Untitled project",
-          updatedAt: Date.now(),
-          thumbnail: makeThumbnail(corrected ?? original),
-          originalBlob,
-          correctedBlob: correctedBlob ?? undefined,
-          squareParams,
-          measurement,
-          elements,
-          backerPlates,
-          step,
+        // cloud first — projects follow the user across devices
+        await saveProjectCloud({
+          ...base,
+          originalSrc: original.src,
+          correctedSrc: corrected?.src,
         });
         refreshProjects();
       } catch {
-        // autosave must never break the editor
+        // offline / backend unavailable: keep the work safe locally
+        try {
+          const [originalBlob, correctedBlob] = await Promise.all([
+            dataUrlToBlob(original.src),
+            corrected ? dataUrlToBlob(corrected.src) : Promise.resolve(undefined),
+          ]);
+          await saveProject({
+            ...base,
+            originalBlob,
+            correctedBlob: correctedBlob ?? undefined,
+          });
+          refreshProjects();
+        } catch {
+          // autosave must never break the editor
+        }
       }
     }, 800);
     return () => {
@@ -165,33 +201,76 @@ export default function Home() {
     setScreen("work");
   };
 
+  const applyLoaded = (loaded: {
+    id: string;
+    name: string;
+    original: HTMLImageElement | null;
+    corrected: HTMLImageElement | null;
+    squareParams: SquareParams;
+    measurement: ReturnType<typeof migrateMeasurement>;
+    elements: SignElement[];
+    backerPlates: number;
+    step: string;
+  }) => {
+    setProjectId(loaded.id);
+    setProjectName(loaded.name);
+    setOriginal(loaded.original);
+    setCorrected(loaded.corrected);
+    setSquareParams(loaded.squareParams);
+    setMeasurement(loaded.measurement);
+    setElementsState(loaded.elements);
+    setBackerPlates(loaded.backerPlates);
+    resetHistory();
+    const s = (["upload", "square", "measure", "design"] as Step[]).includes(
+      loaded.step as Step
+    )
+      ? (loaded.step as Step)
+      : "upload";
+    setStep(loaded.original ? s : "upload");
+    setScreen("work");
+  };
+
   const openProject = async (id: string) => {
     setLoadingProject(true);
     try {
+      // cloud first
+      const c = await getProjectCloud(id).catch(() => null);
+      if (c) {
+        const [orig, corr] = await Promise.all([
+          c.state.originalUrl ? urlToImage(c.state.originalUrl) : Promise.resolve(null),
+          c.state.correctedUrl ? urlToImage(c.state.correctedUrl) : Promise.resolve(null),
+        ]);
+        applyLoaded({
+          id: c.id,
+          name: c.name,
+          original: orig,
+          corrected: corr,
+          squareParams: c.state.squareParams,
+          measurement: migrateMeasurement(c.state.measurement),
+          elements: c.state.elements ?? [],
+          backerPlates: c.state.backerPlates ?? 0,
+          step: c.state.step,
+        });
+        return;
+      }
+      // fall back to this device's IndexedDB copy
       const p = await getProject(id);
       if (!p) return;
       const [orig, corr] = await Promise.all([
         p.originalBlob ? blobToImage(p.originalBlob) : Promise.resolve(null),
         p.correctedBlob ? blobToImage(p.correctedBlob) : Promise.resolve(null),
       ]);
-      // Konva reads image.src for exports; ensure data URLs, not object URLs,
-      // survive re-saves — blobToImage uses object URLs which work for canvas.
-      setProjectId(p.id);
-      setProjectName(p.name);
-      setOriginal(orig);
-      setCorrected(corr);
-      setSquareParams(p.squareParams);
-      setMeasurement(migrateMeasurement(p.measurement));
-      setElementsState(p.elements);
-      setBackerPlates(p.backerPlates);
-      resetHistory();
-      const s = (["upload", "square", "measure", "design"] as Step[]).includes(
-        p.step as Step
-      )
-        ? (p.step as Step)
-        : "upload";
-      setStep(orig ? s : "upload");
-      setScreen("work");
+      applyLoaded({
+        id: p.id,
+        name: p.name,
+        original: orig,
+        corrected: corr,
+        squareParams: p.squareParams,
+        measurement: migrateMeasurement(p.measurement),
+        elements: p.elements,
+        backerPlates: p.backerPlates,
+        step: p.step,
+      });
     } finally {
       setLoadingProject(false);
     }
@@ -290,6 +369,11 @@ export default function Home() {
                     <div className="p-3">
                       <div className="truncate text-sm font-medium text-zinc-100">
                         {p.name}
+                        {p.local && (
+                          <span className="ml-2 rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] font-normal text-zinc-400">
+                            this device
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-zinc-500">
                         {new Date(p.updatedAt).toLocaleString()}
@@ -299,7 +383,10 @@ export default function Home() {
                   <button
                     onClick={() => {
                       if (confirm(`Delete “${p.name}”? This cannot be undone.`))
-                        deleteProject(p.id).then(refreshProjects);
+                        Promise.allSettled([
+                          deleteProjectCloud(p.id),
+                          deleteProject(p.id),
+                        ]).then(refreshProjects);
                     }}
                     className="w-full border-t border-zinc-800 py-1.5 text-xs text-zinc-500 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
                   >

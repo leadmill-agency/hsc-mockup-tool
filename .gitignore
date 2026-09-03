@@ -45,3 +45,4 @@ public/demo-*.png
 
 # dev snapshot output
 .dev-snaps/
+.env*.local
