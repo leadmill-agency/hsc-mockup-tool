@@ -1,6 +1,6 @@
 import { put } from "@vercel/blob";
 
-const KEY_RE = /^projects\/[a-zA-Z0-9-]{1,64}\/[a-zA-Z0-9._-]{1,120}$/;
+const KEY_RE = /^(?:projects|proposals)\/[a-zA-Z0-9-]{1,64}\/[a-zA-Z0-9._-]{1,120}$/;
 const MAX_BYTES = 30 * 1024 * 1024;
 
 export async function POST(req: Request): Promise<Response> {

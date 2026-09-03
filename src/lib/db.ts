@@ -22,6 +22,15 @@ export async function ensureSchema(): Promise<void> {
     thumbnail text,
     state jsonb NOT NULL DEFAULT '{}'::jsonb
   )`;
+  await sql()`CREATE TABLE IF NOT EXISTS proposals (
+    token text PRIMARY KEY,
+    project_name text,
+    price_low bigint,
+    price_high bigint,
+    to_email text,
+    html text NOT NULL,
+    created_at bigint NOT NULL
+  )`;
   ensured = true;
 }
 

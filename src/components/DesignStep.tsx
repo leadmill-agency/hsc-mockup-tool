@@ -34,9 +34,10 @@ import {
 import { racewayCount } from "@/lib/types";
 import { removeUniformBackground } from "@/lib/removeBg";
 import { loadGoogleFont } from "@/lib/fonts";
-import { writeProposal } from "@/lib/proposal";
+import { buildProposalHtml } from "@/lib/proposal";
 import FontPicker from "@/components/FontPicker";
 import { elementsToPieces } from "@/components/PricePanel";
+import { uploadAsset } from "@/lib/cloud";
 
 interface Props {
   image: HTMLImageElement;
@@ -573,7 +574,7 @@ export default function DesignStep({
     a.click();
   };
 
-  const makeProposal = async () => {
+  const makeProposal = async (toEmail?: string) => {
     // open synchronously so the popup isn't blocked, fill in async
     const win = window.open("about:blank", "_blank");
     if (!win) {
@@ -581,6 +582,7 @@ export default function DesignStep({
       return;
     }
     win.document.write("<title>Preparing proposal…</title>");
+    const token = crypto.randomUUID();
     const wasNight = night;
     setNight(false);
     await new Promise((r) => setTimeout(r, 60));
@@ -697,18 +699,62 @@ export default function DesignStep({
         ]
       : [];
 
-    writeProposal(win, {
-      projectName,
-      dayPng,
-      nightPng,
-      sections: [
-        sec("Storefront sign", signItems),
-        sec("Project delivery and allowances", deliveryItems),
-      ],
-      totalLow: pricing.low,
-      totalHigh: pricing.high,
-      specs,
-    });
+    try {
+      // host the mockup images so the proposal page and email can use them
+      const [dayUrl, nightUrl] = await Promise.all([
+        uploadAsset(`proposals/${token}/day.png`, dayPng),
+        uploadAsset(`proposals/${token}/night.png`, nightPng),
+      ]);
+      const html = buildProposalHtml({
+        projectName,
+        dayPng: dayUrl,
+        nightPng: nightUrl,
+        sections: [
+          sec("Storefront sign", signItems),
+          sec("Project delivery and allowances", deliveryItems),
+        ],
+        totalLow: pricing.low,
+        totalHigh: pricing.high,
+        specs,
+      });
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          token,
+          projectName,
+          html,
+          priceLow: pricing.low,
+          priceHigh: pricing.high,
+          toEmail,
+        }),
+      });
+      if (!res.ok) throw new Error(`proposal save failed: ${res.status}`);
+      const out = (await res.json()) as {
+        url: string;
+        emailed: boolean;
+        hookConfigured: boolean;
+      };
+      win.location.href = out.url;
+      if (toEmail) {
+        alert(
+          out.emailed
+            ? `Proposal emailed to ${toEmail} via your Zapier automation.`
+            : out.hookConfigured
+              ? "The proposal link was created, but the Zapier webhook call failed — send the link manually."
+              : "Proposal link created — but no Zapier webhook is connected yet, so no email was sent. Copy the link from the opened page."
+        );
+      }
+    } catch (e) {
+      win.close();
+      alert(`Could not create the proposal: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const emailProposal = () => {
+    const to = window.prompt("Customer email for this proposal:");
+    if (to && /.+@.+\..+/.test(to)) void makeProposal(to.trim());
+    else if (to) alert("That doesn't look like an email address.");
   };
 
   const selectedDims =
@@ -1045,11 +1091,19 @@ export default function DesignStep({
             Export PNG
           </button>
           <button
-            onClick={makeProposal}
+            onClick={() => void makeProposal()}
             disabled={elements.length === 0}
             className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
           >
             Proposal
+          </button>
+          <button
+            onClick={emailProposal}
+            disabled={elements.length === 0}
+            title="Create the proposal and email it to the customer via Zapier"
+            className="rounded-lg border border-amber-400/60 px-3 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-400/10 disabled:opacity-40"
+          >
+            ✉ Email
           </button>
         </div>
 

@@ -54,16 +54,13 @@ function toPath(src: string): string {
 // avoid re-uploading unchanged images within a session
 const uploadCache = new Map<string, string>();
 
-async function uploadImage(
-  projectId: string,
-  name: string,
-  src: string
-): Promise<string> {
-  const cacheKey = `${projectId}/${name}:${src.length}`;
+/** Upload a data-URL (or blob-URL) image to blob storage under `key`,
+ *  returning the same-origin proxy URL. */
+export async function uploadAsset(key: string, src: string): Promise<string> {
+  const cacheKey = `${key}:${src.length}`;
   const hit = uploadCache.get(cacheKey);
   if (hit) return hit;
   const blob = await (await fetch(src)).blob();
-  const key = `projects/${projectId}/${name}`;
   const res = await fetch(
     `/api/assets/upload?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(
       blob.type || "image/png"
@@ -80,12 +77,12 @@ async function uploadImage(
 export async function saveProjectCloud(p: SavePayload): Promise<void> {
   const originalUrl = isRemote(p.originalSrc)
     ? toPath(p.originalSrc)
-    : await uploadImage(p.id, "original.png", p.originalSrc);
+    : await uploadAsset(`projects/${p.id}/original.png`, p.originalSrc);
   const correctedUrl = !p.correctedSrc
     ? undefined
     : isRemote(p.correctedSrc)
       ? toPath(p.correctedSrc)
-      : await uploadImage(p.id, "corrected.png", p.correctedSrc);
+      : await uploadAsset(`projects/${p.id}/corrected.png`, p.correctedSrc);
 
   const elements = await Promise.all(
     p.elements.map(async (el) => {
@@ -94,7 +91,7 @@ export async function saveProjectCloud(p: SavePayload): Promise<void> {
       for (const field of ["src", "originalSrc", "processedSrc"] as const) {
         const v = out[field];
         if (v && v.startsWith("data:")) {
-          out[field] = await uploadImage(p.id, `${field}-${el.id}.png`, v);
+          out[field] = await uploadAsset(`projects/${p.id}/${field}-${el.id}.png`, v);
         } else if (v && isRemote(v)) {
           out[field] = toPath(v);
         }

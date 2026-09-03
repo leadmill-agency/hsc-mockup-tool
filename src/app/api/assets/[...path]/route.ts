@@ -4,7 +4,7 @@ import { head } from "@vercel/blob";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 
-const KEY_RE = /^projects\/[a-zA-Z0-9-]{1,64}\/[a-zA-Z0-9._-]{1,120}$/;
+const KEY_RE = /^(?:projects|proposals)\/[a-zA-Z0-9-]{1,64}\/[a-zA-Z0-9._-]{1,120}$/;
 
 export async function GET(_req: Request, ctx: Ctx): Promise<Response> {
   const { path } = await ctx.params;
