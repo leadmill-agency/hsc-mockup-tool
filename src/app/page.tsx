@@ -121,6 +121,19 @@ export default function Home() {
     refreshProjects();
   }, [refreshProjects]);
 
+  // Emailed personal links land here as /?open=<projectId>
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    if (openedFromLink.current) return;
+    openedFromLink.current = true;
+    const id = new URLSearchParams(window.location.search).get("open");
+    if (id && /^[a-zA-Z0-9-]{8,64}$/.test(id)) {
+      window.history.replaceState(null, "", window.location.pathname);
+      void openProject(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ---- autosave (debounced) ----
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
