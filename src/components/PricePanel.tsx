@@ -7,13 +7,17 @@ import {
   PieceGroup,
   PricingConfig,
 } from "@/lib/pricing";
-import { racewayCount, SignElement, textLetterHeightInches } from "@/lib/types";
+import {
+  backerCount,
+  cabinetHeightInches,
+  racewayCount,
+  SignElement,
+  textLetterHeightInches,
+} from "@/lib/types";
 
 interface Props {
   elements: SignElement[];
   ipp: number;
-  backerPlates: number;
-  setBackerPlates: (n: number) => void;
   cfg: PricingConfig;
   setCfg: (updater: (c: PricingConfig) => PricingConfig) => void;
 }
@@ -25,11 +29,18 @@ function letterCount(text: string): number {
 export function elementsToPieces(elements: SignElement[], ipp: number): PieceGroup[] {
   return elements.map((el) =>
     el.kind === "text"
-      ? {
-          label: `“${el.text}” — ${letterCount(el.text)} letters`,
-          heightInches: textLetterHeightInches(el, ipp),
-          count: letterCount(el.text),
-        }
+      ? el.signStyle === "cabinet"
+        ? {
+            // cabinet/box signs price as one piece at overall box height
+            label: `“${el.text}” — cabinet sign`,
+            heightInches: cabinetHeightInches(el, ipp),
+            count: 1,
+          }
+        : {
+            label: `“${el.text}” — ${letterCount(el.text)} letters`,
+            heightInches: textLetterHeightInches(el, ipp),
+            count: letterCount(el.text),
+          }
       : el.priceAsLetters
         ? {
             label: `Logo — ${el.letterCount ?? 10} letters`,
@@ -44,48 +55,11 @@ export function elementsToPieces(elements: SignElement[], ipp: number): PieceGro
   );
 }
 
-function Counter({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-zinc-300">{label}</span>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onChange(Math.max(0, value - 1))}
-          className="h-7 w-7 rounded border border-zinc-600 text-zinc-200 hover:bg-zinc-800"
-        >
-          −
-        </button>
-        <span className="w-5 text-center tabular-nums text-zinc-100">{value}</span>
-        <button
-          onClick={() => onChange(value + 1)}
-          className="h-7 w-7 rounded border border-zinc-600 text-zinc-200 hover:bg-zinc-800"
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function PricePanel({
-  elements,
-  ipp,
-  backerPlates,
-  setBackerPlates,
-  cfg,
-  setCfg,
-}: Props) {
+export default function PricePanel({ elements, ipp, cfg, setCfg }: Props) {
   const pieces = elementsToPieces(elements, ipp);
   const wireways = racewayCount(elements);
-  const pricing = calculatePricing(pieces, backerPlates, wireways, cfg);
+  const backers = backerCount(elements);
+  const pricing = calculatePricing(pieces, backers, wireways, cfg);
 
   const cfgField = (
     key: keyof PricingConfig,
@@ -130,7 +104,13 @@ export default function PricePanel({
         </div>
 
         <div className="mt-4 space-y-2 border-t border-zinc-700 pt-3">
-          <Counter label="Backer plates (+$400)" value={backerPlates} onChange={setBackerPlates} />
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-zinc-300">Backer plates (+$400 each)</span>
+            <span className="text-sm tabular-nums text-zinc-100">
+              {backers}
+              <span className="ml-1 text-xs text-zinc-500">from design</span>
+            </span>
+          </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-zinc-300">Wireway (+$400 flat)</span>
             <span className="text-sm tabular-nums text-zinc-100">

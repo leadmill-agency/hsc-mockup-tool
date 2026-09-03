@@ -70,6 +70,30 @@ export interface TextElement {
   trimColor?: string; // trim cap + return color; default dark bronze
   lighting?: Lighting; // default "front"; drives night rendering + proposal
   ledColor?: string; // LED color: halo wash / front-lit glow at night
+  signStyle?: "letters" | "cabinet"; // channel letters (default) or cabinet/box sign
+  backer?: boolean; // letters mounted on a backer panel (+$400 each)
+  backerColor?: string; // backer panel color, or the cabinet face color
+}
+
+/** Cabinet face extends this far beyond the text, in inches. */
+export const CABINET_PAD_IN = { x: 8, y: 5 };
+/** Backer panel margin around the letters, in inches. */
+export const BACKER_PAD_IN = { x: 6, y: 4 };
+
+export function isCabinet(el: SignElement): el is TextElement {
+  return el.kind === "text" && el.signStyle === "cabinet";
+}
+
+/** Number of backer plates implied by the design (+$400 each). */
+export function backerCount(elements: SignElement[]): number {
+  return elements.filter(
+    (e) => e.kind === "text" && e.signStyle !== "cabinet" && e.backer
+  ).length;
+}
+
+/** Overall cabinet box height in inches (text + face margins). */
+export function cabinetHeightInches(el: TextElement, ipp: number): number {
+  return el.fontSize * ipp + CABINET_PAD_IN.y * 2;
 }
 
 export interface LogoElement {
@@ -188,7 +212,9 @@ export function measureTextWidth(
 
 /** Number of wireways/raceways implied by the design. */
 export function racewayCount(elements: SignElement[]): number {
-  return elements.filter((e) => e.kind === "text" && e.raceway).length;
+  return elements.filter(
+    (e) => e.kind === "text" && e.signStyle !== "cabinet" && e.raceway
+  ).length;
 }
 
 /** Font size that renders the given capital-letter height. */

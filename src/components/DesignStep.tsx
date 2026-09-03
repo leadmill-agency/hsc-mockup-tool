@@ -14,6 +14,10 @@ import {
   Transformer,
 } from "react-konva";
 import {
+  BACKER_PAD_IN,
+  backerCount,
+  CABINET_PAD_IN,
+  cabinetHeightInches,
   capHeightRatio,
   fontSizeForLetterHeight,
   invalidateCapHeight,
@@ -50,7 +54,6 @@ interface Props {
   canUndo: boolean;
   canRedo: boolean;
   projectName: string;
-  backerPlates: number;
   pricingCfg: PricingConfig;
   onBack: () => void;
   sidebar: ReactNode;
@@ -132,6 +135,48 @@ function TextSign({
   // halo wash defaults to warm white; front-lit glow defaults to face color
   const haloLed = el.ledColor ?? "#fff3d6";
   const frontLed = el.ledColor ?? el.fill;
+
+  if (el.signStyle === "cabinet") {
+    // illuminated box: the face lights up as a whole at night
+    const padX = (CABINET_PAD_IN.x / ipp) * scale;
+    const padY = (CABINET_PAD_IN.y / ipp) * scale;
+    const boxW = measureTextWidth(el.text, el.fontSize, family) * scale + padX * 2;
+    const boxH = fs + padY * 2;
+    const face = el.backerColor ?? "#f7f5f0";
+    const lit = night && lighting !== "none";
+    return (
+      <Group
+        x={el.x * scale}
+        y={el.y * scale}
+        rotation={el.rotation}
+        {...draggableProps}
+      >
+        <Rect
+          x={-padX}
+          y={-padY}
+          width={boxW}
+          height={boxH}
+          fill={night && !lit ? shade(face, -0.55) : face}
+          stroke={shade(face, -0.45)}
+          strokeWidth={Math.max(1, ((1 / ipp) * scale) / 2)}
+          cornerRadius={(1.5 / ipp) * scale}
+          shadowColor={lit ? (el.ledColor ?? "#fff8e0") : "black"}
+          shadowBlur={lit ? boxH * 0.5 : 8 * scale}
+          shadowOffsetY={lit ? 0 : 4 * scale}
+          shadowOpacity={lit ? 0.9 : night ? 0 : 0.45}
+          listening
+        />
+        <KText
+          text={el.text}
+          fontSize={fs}
+          fontFamily={family}
+          fontStyle="bold"
+          fill={night && !lit ? shade(el.fill, -0.4) : el.fill}
+          listening={false}
+        />
+      </Group>
+    );
+  }
 
   return (
     <Group
@@ -264,7 +309,6 @@ export default function DesignStep({
   canUndo,
   canRedo,
   projectName,
-  backerPlates,
   pricingCfg,
   onBack,
   sidebar,
@@ -426,10 +470,17 @@ export default function DesignStep({
 
   const nodeDims = (node: Konva.Node, el: SignElement) =>
     el.kind === "text"
-      ? {
-          w: textWidthInches(el, ipp) * Math.abs(node.scaleX()),
-          h: textLetterHeightInches(el, ipp) * Math.abs(node.scaleY()),
-        }
+      ? el.signStyle === "cabinet"
+        ? {
+            w:
+              (textWidthInches(el, ipp) + CABINET_PAD_IN.x * 2) *
+              Math.abs(node.scaleX()),
+            h: cabinetHeightInches(el, ipp) * Math.abs(node.scaleY()),
+          }
+        : {
+            w: textWidthInches(el, ipp) * Math.abs(node.scaleX()),
+            h: textLetterHeightInches(el, ipp) * Math.abs(node.scaleY()),
+          }
       : {
           w: el.width * ipp * Math.abs(node.scaleX()),
           h: el.height * ipp * Math.abs(node.scaleY()),
@@ -437,10 +488,18 @@ export default function DesignStep({
 
   const elementStageSize = (el: SignElement) =>
     el.kind === "text"
-      ? {
-          w: measureTextWidth(el.text, el.fontSize, el.fontFamily) * scale,
-          h: el.fontSize * scale,
-        }
+      ? el.signStyle === "cabinet"
+        ? {
+            w:
+              (measureTextWidth(el.text, el.fontSize, el.fontFamily) +
+                (CABINET_PAD_IN.x * 2) / ipp) *
+              scale,
+            h: (el.fontSize + (CABINET_PAD_IN.y * 2) / ipp) * scale,
+          }
+        : {
+            w: measureTextWidth(el.text, el.fontSize, el.fontFamily) * scale,
+            h: el.fontSize * scale,
+          }
       : { w: el.width * scale, h: el.height * scale };
 
   const commonProps = (el: SignElement): Konva.NodeConfig & { id: string } => {
@@ -603,12 +662,21 @@ export default function DesignStep({
 
     const signItems = elements.map((el) => {
       if (el.kind === "text") {
+        if (el.signStyle === "cabinet") {
+          const bh = cabinetHeightInches(el, ipp);
+          const bw = textWidthInches(el, ipp) + CABINET_PAD_IN.x * 2;
+          return {
+            label: `“${el.text}” cabinet sign`,
+            detail: `Approx. ${formatFeetInches(bw)} W × ${formatFeetInches(bh)} H ${lightingLabel(el.lighting)} cabinet/box sign.`,
+            ...toRange(bh * cfg.coefficient),
+          };
+        }
         const h = textLetterHeightInches(el, ipp);
         const w = textWidthInches(el, ipp);
         const count = el.text.replace(/\s/g, "").length;
         return {
           label: `“${el.text}” channel letters`,
-          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${el.raceway ? ", raceway mounted (painted to match wall)" : ", flush mounted"}.`,
+          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${el.raceway ? ", raceway mounted (painted to match wall)" : el.backer ? ", mounted on a painted backer panel" : ", flush mounted"}.`,
           ...toRange(h * count * cfg.coefficient),
         };
       }
@@ -631,6 +699,7 @@ export default function DesignStep({
     });
 
     const wireways = racewayCount(elements);
+    const backers = backerCount(elements);
     const deliveryItems = [
       {
         label: "Fabrication base, delivery & standard installation",
@@ -646,11 +715,12 @@ export default function DesignStep({
             },
           ]
         : []),
-      ...(backerPlates > 0
+      ...(backers > 0
         ? [
             {
-              label: `Backer plate${backerPlates > 1 ? `s (${backerPlates})` : ""}`,
-              ...toRange(backerPlates * cfg.addOnCost),
+              label: `Backer plate${backers > 1 ? `s (${backers})` : ""}`,
+              detail: "Painted aluminum backer panel(s) behind the letters.",
+              ...toRange(backers * cfg.addOnCost),
             },
           ]
         : []),
@@ -668,7 +738,7 @@ export default function DesignStep({
 
     const pricing = calculatePricing(
       elementsToPieces(elements, ipp),
-      backerPlates,
+      backers,
       wireways,
       cfg
     );
@@ -761,10 +831,15 @@ export default function DesignStep({
     liveDims ??
     (selected
       ? selected.kind === "text"
-        ? {
-            w: textWidthInches(selected, ipp),
-            h: textLetterHeightInches(selected, ipp),
-          }
+        ? selected.signStyle === "cabinet"
+          ? {
+              w: textWidthInches(selected, ipp) + CABINET_PAD_IN.x * 2,
+              h: cabinetHeightInches(selected, ipp),
+            }
+          : {
+              w: textWidthInches(selected, ipp),
+              h: textLetterHeightInches(selected, ipp),
+            }
         : { w: selected.width * ipp, h: selected.height * ipp }
       : null);
 
@@ -858,6 +933,32 @@ export default function DesignStep({
           )}
           {selected?.kind === "text" && (
             <>
+              <select
+                value={selected.signStyle ?? "letters"}
+                onChange={(e) => {
+                  const v = e.target.value as "letters" | "cabinet";
+                  commit(
+                    selected.id,
+                    v === "cabinet"
+                      ? {
+                          signStyle: v,
+                          raceway: false,
+                          backer: false,
+                          backerColor: "#f7f5f0",
+                          fill:
+                            selected.fill === "#f5f5f5"
+                              ? "#1c1917"
+                              : selected.fill,
+                        }
+                      : { signStyle: v, backerColor: "#3f3c38" }
+                  );
+                }}
+                title="Sign construction"
+                className="rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-2 text-sm text-zinc-100"
+              >
+                <option value="letters">Channel letters</option>
+                <option value="cabinet">Cabinet sign</option>
+              </select>
               <FontPicker
                 value={selected.fontFamily ?? SIGN_FONT}
                 onPick={async (family, googleName) => {
@@ -883,6 +984,21 @@ export default function DesignStep({
                   className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
                 />
               </label>
+              {selected.signStyle === "cabinet" && (
+                <label className="flex items-center gap-2 text-sm text-zinc-300">
+                  Box
+                  <input
+                    type="color"
+                    title="Cabinet face color"
+                    value={selected.backerColor ?? "#f7f5f0"}
+                    onChange={(e) =>
+                      commit(selected.id, { backerColor: e.target.value })
+                    }
+                    className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                  />
+                </label>
+              )}
+              {selected.signStyle !== "cabinet" && (
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 Trim
                 <input
@@ -895,6 +1011,8 @@ export default function DesignStep({
                   className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
                 />
               </label>
+              )}
+              {selected.signStyle !== "cabinet" && (
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 <input
                   type="checkbox"
@@ -911,7 +1029,8 @@ export default function DesignStep({
                 />
                 Raceway
               </label>
-              {selected.raceway && (
+              )}
+              {selected.signStyle !== "cabinet" && selected.raceway && (
                 <>
                   <input
                     type="color"
@@ -934,6 +1053,35 @@ export default function DesignStep({
                     Match wall
                   </button>
                 </>
+              )}
+              {selected.signStyle !== "cabinet" && (
+                <label className="flex items-center gap-2 text-sm text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={!!selected.backer}
+                    onChange={(e) =>
+                      commit(selected.id, {
+                        backer: e.target.checked,
+                        backerColor: e.target.checked
+                          ? selected.backerColor ?? "#3f3c38"
+                          : selected.backerColor,
+                      })
+                    }
+                    className="h-4 w-4 accent-amber-400"
+                  />
+                  Backer
+                </label>
+              )}
+              {selected.signStyle !== "cabinet" && selected.backer && (
+                <input
+                  type="color"
+                  title="Backer panel color"
+                  value={selected.backerColor ?? "#3f3c38"}
+                  onChange={(e) =>
+                    commit(selected.id, { backerColor: e.target.value })
+                  }
+                  className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                />
               )}
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 Letter height (in)
@@ -1146,29 +1294,47 @@ export default function DesignStep({
                 />
               )}
               {elements.map((el) => {
-                // raceway box drawn behind its letters
-                if (el.kind !== "text" || !el.raceway) return null;
-                const padPx = 2 / ipp; // 2" side margins
-                const hPx = 8 / ipp; // standard ~8" raceway
-                const wPx =
-                  measureTextWidth(el.text, el.fontSize, el.fontFamily) +
-                  padPx * 2;
+                // mounting hardware drawn behind the letters: raceway strip
+                // and/or backer panel (not applicable to cabinet signs)
+                if (el.kind !== "text" || el.signStyle === "cabinet") return null;
+                const textW = measureTextWidth(el.text, el.fontSize, el.fontFamily);
+                const rwPad = 2 / ipp; // 2" side margins
+                const rwH = 8 / ipp; // standard ~8" raceway
+                const bkPadX = BACKER_PAD_IN.x / ipp;
+                const bkPadY = BACKER_PAD_IN.y / ipp;
                 return (
-                  <Rect
-                    key={`rw-${el.id}`}
-                    x={(el.x - padPx) * scale}
-                    y={(el.y + el.fontSize / 2 - hPx / 2) * scale}
-                    width={wPx * scale}
-                    height={hPx * scale}
-                    rotation={el.rotation}
-                    fill={el.racewayColor ?? "#3f3c38"}
-                    cornerRadius={2 * scale}
-                    shadowColor="black"
-                    shadowBlur={6 * scale}
-                    shadowOffsetY={4 * scale}
-                    shadowOpacity={0.4}
-                    listening={false}
-                  />
+                  <Group key={`mount-${el.id}`} listening={false}>
+                    {el.raceway && (
+                      <Rect
+                        x={(el.x - rwPad) * scale}
+                        y={(el.y + el.fontSize / 2 - rwH / 2) * scale}
+                        width={(textW + rwPad * 2) * scale}
+                        height={rwH * scale}
+                        rotation={el.rotation}
+                        fill={el.racewayColor ?? "#3f3c38"}
+                        cornerRadius={2 * scale}
+                        shadowColor="black"
+                        shadowBlur={6 * scale}
+                        shadowOffsetY={4 * scale}
+                        shadowOpacity={0.4}
+                      />
+                    )}
+                    {el.backer && (
+                      <Rect
+                        x={(el.x - bkPadX) * scale}
+                        y={(el.y - bkPadY) * scale}
+                        width={(textW + bkPadX * 2) * scale}
+                        height={(el.fontSize + bkPadY * 2) * scale}
+                        rotation={el.rotation}
+                        fill={el.backerColor ?? "#3f3c38"}
+                        cornerRadius={(2 / ipp) * scale}
+                        shadowColor="black"
+                        shadowBlur={8 * scale}
+                        shadowOffsetY={5 * scale}
+                        shadowOpacity={night ? 0.2 : 0.45}
+                      />
+                    )}
+                  </Group>
                 );
               })}
               {elements.map((el) =>
@@ -1198,7 +1364,9 @@ export default function DesignStep({
                 const h =
                   liveDims?.h ??
                   (el.kind === "text"
-                    ? textLetterHeightInches(el, ipp)
+                    ? el.signStyle === "cabinet"
+                      ? cabinetHeightInches(el, ipp)
+                      : textLetterHeightInches(el, ipp)
                     : el.height * ipp);
                 const size = elementStageSize(el);
                 const inv = 1 / view.z;
@@ -1282,7 +1450,9 @@ export default function DesignStep({
           {selectedDims && (
             <span className="tabular-nums">
               {selected?.kind === "text"
-                ? `Letters: ${formatFeetInches(selectedDims.h)} tall · ${formatFeetInches(selectedDims.w)} wide`
+                ? selected.signStyle === "cabinet"
+                  ? `Cabinet: ${formatFeetInches(selectedDims.w)} × ${formatFeetInches(selectedDims.h)}`
+                  : `Letters: ${formatFeetInches(selectedDims.h)} tall · ${formatFeetInches(selectedDims.w)} wide`
                 : `Logo: ${formatFeetInches(selectedDims.w)} × ${formatFeetInches(selectedDims.h)}`}
             </span>
           )}

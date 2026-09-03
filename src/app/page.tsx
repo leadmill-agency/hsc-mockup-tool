@@ -7,6 +7,7 @@ import SquareUpStep from "@/components/SquareUpStep";
 import PricePanel from "@/components/PricePanel";
 import { DEFAULT_SQUARE, SquareParams } from "@/lib/warp";
 import {
+  backerCount,
   inchesPerPixel,
   Measurement,
   migrateMeasurement,
@@ -58,7 +59,6 @@ export default function Home() {
   const [squareParams, setSquareParams] = useState<SquareParams>(DEFAULT_SQUARE);
   const [measurement, setMeasurement] = useState<Measurement | null>(null);
   const [elements, setElementsState] = useState<SignElement[]>([]);
-  const [backerPlates, setBackerPlates] = useState(0);
   const [pricingCfg, setPricingCfg] = useState<PricingConfig>(DEFAULT_PRICING);
 
   // Undo history: beginAction() snapshots the current design before a discrete
@@ -135,7 +135,7 @@ export default function Home() {
         squareParams,
         measurement,
         elements,
-        backerPlates,
+        backerPlates: backerCount(elements),
         step,
       };
       try {
@@ -176,7 +176,6 @@ export default function Home() {
     squareParams,
     measurement,
     elements,
-    backerPlates,
     step,
     loadingProject,
     refreshProjects,
@@ -194,7 +193,6 @@ export default function Home() {
     setCorrected(null);
     setMeasurement(null);
     setElementsState([]);
-    setBackerPlates(0);
     setSquareParams(DEFAULT_SQUARE);
     resetHistory();
     setStep("upload");
@@ -209,7 +207,6 @@ export default function Home() {
     squareParams: SquareParams;
     measurement: ReturnType<typeof migrateMeasurement>;
     elements: SignElement[];
-    backerPlates: number;
     step: string;
   }) => {
     setProjectId(loaded.id);
@@ -219,7 +216,6 @@ export default function Home() {
     setSquareParams(loaded.squareParams);
     setMeasurement(loaded.measurement);
     setElementsState(loaded.elements);
-    setBackerPlates(loaded.backerPlates);
     resetHistory();
     const s = (["upload", "square", "measure", "design"] as Step[]).includes(
       loaded.step as Step
@@ -248,7 +244,6 @@ export default function Home() {
           squareParams: c.state.squareParams,
           measurement: migrateMeasurement(c.state.measurement),
           elements: c.state.elements ?? [],
-          backerPlates: c.state.backerPlates ?? 0,
           step: c.state.step,
         });
         return;
@@ -268,7 +263,6 @@ export default function Home() {
         squareParams: p.squareParams,
         measurement: migrateMeasurement(p.measurement),
         elements: p.elements,
-        backerPlates: p.backerPlates,
         step: p.step,
       });
     } finally {
@@ -500,15 +494,12 @@ export default function Home() {
             canUndo={pastRef.current.length > 0}
             canRedo={futureRef.current.length > 0}
             projectName={projectName}
-            backerPlates={backerPlates}
             pricingCfg={pricingCfg}
             onBack={() => setStep("measure")}
             sidebar={
               <PricePanel
                 elements={elements}
                 ipp={ipp}
-                backerPlates={backerPlates}
-                setBackerPlates={setBackerPlates}
                 cfg={pricingCfg}
                 setCfg={(updater) => setPricingCfg((c) => updater(c))}
               />
