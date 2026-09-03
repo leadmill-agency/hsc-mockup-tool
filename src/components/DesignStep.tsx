@@ -537,27 +537,32 @@ export default function DesignStep({
     zoomTo(view.z * (e.evt.deltaY > 0 ? 1 / 1.15 : 1.15), pointer);
   };
 
-  /** Full-resolution capture with clean view (no selection, badges, zoom). */
-  const capture = (): Promise<string> =>
-    new Promise((resolve) => {
-      const stage = stageRef.current;
-      if (!stage) return resolve("");
-      const prevView = view;
-      setSelectedId(null);
-      setShowDims(false);
-      setView({ z: 1, x: 0, y: 0 });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const url = stage.toDataURL({
-            pixelRatio: 1 / scale,
-            mimeType: "image/png",
-          });
-          setShowDims(true);
-          setView(prevView);
-          resolve(url);
-        });
-      });
+  /** Full-resolution capture with clean view (no selection, badges, zoom).
+   *  Uses rAF for a settled paint but falls back to a timeout so hidden or
+   *  throttled tabs can't hang the capture forever. */
+  const capture = async (): Promise<string> => {
+    const stage = stageRef.current;
+    if (!stage) return "";
+    const prevView = view;
+    setSelectedId(null);
+    setShowDims(false);
+    setView({ z: 1, x: 0, y: 0 });
+    await new Promise<void>((r) => {
+      let done = false;
+      const finish = () => {
+        if (!done) {
+          done = true;
+          r();
+        }
+      };
+      requestAnimationFrame(() => requestAnimationFrame(finish));
+      setTimeout(finish, 300);
     });
+    const url = stage.toDataURL({ pixelRatio: 1 / scale, mimeType: "image/png" });
+    setShowDims(true);
+    setView(prevView);
+    return url;
+  };
 
   const exportPng = async () => {
     const url = await capture();
@@ -584,17 +589,125 @@ export default function DesignStep({
     await new Promise((r) => setTimeout(r, 60));
     const nightPng = await capture();
     setNight(wasNight);
-    const pieces = elementsToPieces(elements, ipp);
+
+    const cfg = pricingCfg;
+    const roundTo = (v: number) => Math.round(v / cfg.roundTo) * cfg.roundTo;
+    const toRange = (cost: number) => ({
+      low: roundTo(cost / (1 - cfg.lowMargin)),
+      high: roundTo(cost / (1 - cfg.highMargin)),
+    });
+    const lightingLabel = (l?: Lighting) =>
+      l === "halo" ? "halo-illuminated" : l === "none" ? "non-illuminated" : "front-lit";
+
+    const signItems = elements.map((el) => {
+      if (el.kind === "text") {
+        const h = textLetterHeightInches(el, ipp);
+        const w = textWidthInches(el, ipp);
+        const count = el.text.replace(/\s/g, "").length;
+        return {
+          label: `“${el.text}” channel letters`,
+          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${el.raceway ? ", raceway mounted (painted to match wall)" : ", flush mounted"}.`,
+          ...toRange(h * count * cfg.coefficient),
+        };
+      }
+      const h = el.height * ipp;
+      const w = el.width * ipp;
+      if (el.priceAsLetters) {
+        const lh = (el.letterHeightRatio ?? 0.6) * h;
+        const n = el.letterCount ?? 10;
+        return {
+          label: "Logo — fabricated as channel letters",
+          detail: `Approx. ${formatFeetInches(w)} W × ${formatFeetInches(h)} H ${lightingLabel(el.lighting)} logo set — ${n} letters at ${formatFeetInches(lh)} letter height.`,
+          ...toRange(lh * n * cfg.coefficient),
+        };
+      }
+      return {
+        label: "Illuminated logo",
+        detail: `Approx. ${formatFeetInches(w)} W × ${formatFeetInches(h)} H ${lightingLabel(el.lighting)} logo assembly.`,
+        ...toRange(h * cfg.coefficient),
+      };
+    });
+
     const wireways = racewayCount(elements);
-    const pricing = calculatePricing(pieces, backerPlates, wireways, pricingCfg);
+    const deliveryItems = [
+      {
+        label: "Fabrication base, delivery & standard installation",
+        detail: "Standard exterior installation; permits and engineering confirmed at consultation.",
+        ...toRange(cfg.baseCost),
+      },
+      ...(wireways > 0
+        ? [
+            {
+              label: "Wireway / raceway",
+              detail: `${wireways} raceway${wireways > 1 ? "s" : ""} painted to match the wall — one flat allowance per project.`,
+              ...toRange(cfg.addOnCost),
+            },
+          ]
+        : []),
+      ...(backerPlates > 0
+        ? [
+            {
+              label: `Backer plate${backerPlates > 1 ? `s (${backerPlates})` : ""}`,
+              ...toRange(backerPlates * cfg.addOnCost),
+            },
+          ]
+        : []),
+    ];
+
+    const sec = (
+      title: string,
+      items: { label: string; detail?: string; low: number; high: number }[]
+    ) => ({
+      title,
+      items,
+      low: items.reduce((s, i) => s + i.low, 0),
+      high: items.reduce((s, i) => s + i.high, 0),
+    });
+
+    const pricing = calculatePricing(
+      elementsToPieces(elements, ipp),
+      backerPlates,
+      wireways,
+      cfg
+    );
+
+    const firstText = elements.find((e): e is TextElement => e.kind === "text");
+    const trimName = firstText?.trimColor ?? "dark bronze (#26221f)";
+    const specs = firstText
+      ? [
+          { label: "Face", value: `3/16" acrylic (${firstText.fill})` },
+          { label: "Backs", value: ".040 aluminum" },
+          { label: "Returns", value: `5" aluminum, painted (${trimName})` },
+          { label: "Trimcap", value: `1" (${trimName})` },
+          {
+            label: "LED",
+            value:
+              (firstText.lighting ?? "front") === "none"
+                ? "None — non-illuminated"
+                : firstText.ledColor
+                  ? `LED modules (${firstText.ledColor})`
+                  : "White LEDs (6500K)",
+          },
+          {
+            label: "Mounting",
+            value: firstText.raceway
+              ? '2" deep × 5" high raceway, painted to match wall'
+              : "Flush to wall",
+          },
+        ]
+      : [];
+
     writeProposal(win, {
       projectName,
       dayPng,
       nightPng,
-      pieces,
-      pricing,
-      wireways,
-      backerPlates,
+      sections: [
+        sec("Storefront sign", signItems),
+        sec("Project delivery and allowances", deliveryItems),
+      ],
+      totalLow: pricing.low,
+      totalHigh: pricing.high,
+      specs,
     });
   };
 

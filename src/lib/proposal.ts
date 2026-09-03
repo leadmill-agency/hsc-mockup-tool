@@ -1,26 +1,53 @@
-// Preliminary proposal document (PRD §8.13): opened in a new window as
-// print-styled HTML — the browser's Save as PDF stands in for server-side
-// rendering in the internal tool.
+// Preliminary proposal document, styled to match HSC's house format: the
+// black italic title bars and blue identity cards from the drawing sets, and
+// the itemized-section estimate layout from HSC web proposals — one vertical
+// list, item details always expanded. Browser Save-as-PDF is the output path.
 
-import {
-  formatFeetInches,
-  formatUsd,
-  PieceGroup,
-  PricingResult,
-} from "@/lib/pricing";
+import { formatUsd } from "@/lib/pricing";
+
+export interface ProposalItem {
+  label: string;
+  detail?: string;
+  low: number;
+  high: number;
+}
+
+export interface ProposalSection {
+  title: string;
+  items: ProposalItem[];
+  low: number;
+  high: number;
+}
+
+export interface SpecLine {
+  label: string;
+  value: string;
+}
 
 export interface ProposalInput {
   projectName: string;
   dayPng: string;
   nightPng?: string;
-  pieces: PieceGroup[];
-  pricing: PricingResult;
-  wireways: number;
-  backerPlates: number;
+  sections: ProposalSection[];
+  totalLow: number;
+  totalHigh: number;
+  specs: SpecLine[];
 }
+
+const HSC = {
+  name: "HOUSTON SIGN CRAFTERS",
+  web: "www.houstonsigncrafters.com",
+  email: "sales@houstonsigncrafters.com",
+  phone: "(832) 974-2546",
+  address: "1359 E 40th St, Houston, TX 77022",
+  blue: "#1e4bb8",
+};
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const range = (low: number, high: number) =>
+  `${formatUsd(low)} – ${formatUsd(high)}`;
 
 export function buildProposalHtml(input: ProposalInput): string {
   const date = new Date().toLocaleDateString("en-US", {
@@ -28,76 +55,161 @@ export function buildProposalHtml(input: ProposalInput): string {
     month: "long",
     day: "numeric",
   });
-  const rows = input.pieces
+
+  const card = (title: string, body: string) => `
+    <div class="card">
+      <div class="card-head">${title}</div>
+      <div class="card-body">${body}</div>
+    </div>`;
+
+  const sectionsHtml = input.sections
     .map(
-      (p) => `<tr>
-        <td>${esc(p.label)}</td>
-        <td>${formatFeetInches(p.heightInches)} letter height</td>
-      </tr>`
+      (s) => `
+    <div class="est-section">
+      <div class="est-head">
+        <span>${esc(s.title)}</span>
+        <span class="est-total">${range(s.low, s.high)}</span>
+      </div>
+      ${s.items
+        .map(
+          (it) => `
+        <div class="est-item">
+          <div class="est-row">
+            <span>${esc(it.label)}</span>
+            <span class="est-price">${range(it.low, it.high)}</span>
+          </div>
+          ${it.detail ? `<div class="est-detail">${esc(it.detail)}</div>` : ""}
+        </div>`
+        )
+        .join("")}
+    </div>`
     )
     .join("");
-  const addOns = [
-    input.wireways > 0 ? "Raceway/wireway mounting" : null,
-    input.backerPlates > 0 ? `${input.backerPlates} backer plate(s)` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+
+  const specsHtml = input.specs.length
+    ? `
+    <div class="block">
+      <div class="spec-title">CHANNEL LETTERS SPECIFICATION</div>
+      ${input.specs
+        .map(
+          (sp) =>
+            `<div class="spec-line"><b>${esc(sp.label)}:</b> ${esc(sp.value)}</div>`
+        )
+        .join("")}
+      <div class="fine" style="margin-top:6px">Final materials confirmed at
+      production; specific thicknesses determined per UL manufacturing
+      standards.</div>
+    </div>`
+    : "";
 
   return `<!doctype html><html><head><meta charset="utf-8">
 <title>Preliminary Sign Concept &amp; Budget Estimate — ${esc(input.projectName)}</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
-         color: #1c1917; margin: 0; padding: 40px; max-width: 800px;
-         margin-inline: auto; }
-  header { display: flex; justify-content: space-between; align-items: baseline;
-           border-bottom: 3px solid #f59e0b; padding-bottom: 12px; }
-  .brand { font-size: 22px; font-weight: 800; }
-  .brand span { color: #d97706; }
-  h1 { font-size: 20px; margin: 24px 0 4px; }
-  .meta { color: #57534e; font-size: 14px; margin-bottom: 20px; }
-  figure { margin: 0 0 8px; }
-  figure img { width: 100%; border-radius: 8px; border: 1px solid #e7e5e4; }
-  figcaption { font-size: 12px; color: #78716c; margin-top: 4px; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
-  td { padding: 6px 8px; border-bottom: 1px solid #e7e5e4; }
-  .invest { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px;
-            padding: 16px 20px; margin: 20px 0; text-align: center; }
-  .invest .label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
-                   color: #92400e; }
-  .invest .range { font-size: 28px; font-weight: 800; color: #92400e; }
-  .fine { font-size: 12px; color: #78716c; line-height: 1.5; }
-  .next { background: #f5f5f4; border-radius: 8px; padding: 12px 16px;
-          font-size: 14px; margin: 16px 0; }
-  .print-btn { position: fixed; top: 16px; right: 16px; background: #f59e0b;
-               border: none; border-radius: 8px; padding: 10px 18px;
+         color: #17171b; margin: 0; background: #fff; }
+  .page { max-width: 820px; margin: 0 auto; padding: 0 36px 40px; }
+  .titlebar { background: #111; color: #fff; font-style: italic;
+              font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+              padding: 8px 16px; font-size: 14px; }
+  .brandrow { display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap;
+              padding: 18px 0 6px; }
+  .brand { color: ${HSC.blue}; font-weight: 900; font-size: 26px;
+           line-height: 1.02; align-self: center; letter-spacing: .01em; }
+  .brand small { display: block; font-size: 15px; letter-spacing: .18em; }
+  .cards { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+  .card { border-radius: 10px; overflow: hidden; min-width: 150px;
+          box-shadow: 0 1px 4px rgba(0,0,0,.25); font-size: 11px; }
+  .card-head { background: ${HSC.blue}; color: #fff; font-weight: 800;
+               text-transform: uppercase; text-align: center; padding: 5px 10px;
+               letter-spacing: .06em; border-bottom: 2px solid #fff; }
+  .card-body { background: ${HSC.blue}; color: #fff; text-align: center;
+               padding: 8px 10px; font-weight: 600; line-height: 1.5; }
+  .bar { background: #111; color: #fff; font-style: italic; font-weight: 800;
+         text-transform: uppercase; letter-spacing: .05em; font-size: 13px;
+         padding: 6px 12px; margin: 26px 0 10px; }
+  figure { margin: 0 0 4px; break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #e2e2e6; }
+  figcaption { font-size: 11px; color: #6b6b74; margin-top: 4px; }
+  .est-section { margin: 18px 0 6px; break-inside: avoid; }
+  .est-head { display: flex; justify-content: space-between; align-items: baseline;
+              font-weight: 800; text-transform: uppercase; letter-spacing: .03em;
+              font-size: 15px; border-bottom: 2px solid #111;
+              padding-bottom: 6px; }
+  .est-total { color: ${HSC.blue}; font-size: 16px; }
+  .est-item { border-bottom: 1px solid #e7e7ea; padding: 10px 0; }
+  .est-row { display: flex; justify-content: space-between; font-size: 15px; }
+  .est-price { white-space: nowrap; font-weight: 600; }
+  .est-detail { color: #6b6b74; font-size: 12.5px; margin-top: 4px;
+                line-height: 1.5; max-width: 560px; }
+  .invest { background: #f4f7ff; border: 2px solid ${HSC.blue}; border-radius: 10px;
+            padding: 14px 20px; margin: 22px 0; text-align: center;
+            break-inside: avoid; }
+  .invest .label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+                   color: ${HSC.blue}; font-weight: 800; }
+  .invest .range { font-size: 27px; font-weight: 900; color: ${HSC.blue}; }
+  .invest .sub { font-size: 11px; color: #6b6b74; margin-top: 2px; }
+  .block { break-inside: avoid; }
+  .spec-title { color: #d21c1c; font-weight: 800; text-decoration: underline;
+                text-transform: uppercase; font-size: 14px; margin: 4px 0 8px; }
+  .spec-line { font-size: 13.5px; line-height: 1.7; }
+  .next { background: #f4f4f5; border-radius: 8px; padding: 12px 16px;
+          font-size: 13.5px; margin: 18px 0 10px; }
+  .fine { font-size: 11px; color: #6b6b74; line-height: 1.55; }
+  .footer { border-top: 3px solid ${HSC.blue}; margin-top: 26px; padding-top: 8px;
+            font-size: 11px; color: #6b6b74; display: flex; gap: 14px;
+            flex-wrap: wrap; }
+  .print-btn { position: fixed; top: 14px; right: 14px; background: ${HSC.blue};
+               color: #fff; border: none; border-radius: 8px; padding: 10px 18px;
                font-weight: 700; cursor: pointer; }
-  @media print { .print-btn { display: none; } body { padding: 0; } }
+  @media print { .print-btn { display: none; } }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
-<header>
-  <div class="brand"><span>Houston</span> Sign Crafters</div>
-  <div class="meta">${date}</div>
-</header>
-<h1>Preliminary Sign Concept &amp; Budget Estimate</h1>
-<div class="meta">${esc(input.projectName)}</div>
-<figure><img src="${input.dayPng}" alt="Proposed sign — day view"><figcaption>Proposed sign — day view</figcaption></figure>
-${input.nightPng ? `<figure><img src="${input.nightPng}" alt="Proposed sign — night view"><figcaption>Proposed sign — illuminated night view</figcaption></figure>` : ""}
-<h1>Preliminary dimensions</h1>
-<table>${rows}</table>
-${addOns ? `<div class="meta">Includes: ${esc(addOns)}</div>` : ""}
-<div class="invest">
-  <div class="label">Estimated project investment</div>
-  <div class="range">${formatUsd(input.pricing.low)} – ${formatUsd(input.pricing.high)}</div>
+<div class="titlebar">${esc(input.projectName)} — Preliminary Sign Concept &amp; Budget Estimate</div>
+<div class="page">
+  <div class="brandrow">
+    <div class="brand">HOUSTON<small>SIGN CRAFTERS</small></div>
+    <div class="cards">
+      ${card("Company Details", `${HSC.web}<br>${HSC.email}<br>${HSC.phone}`)}
+      ${card("Project Name", esc(input.projectName))}
+      ${card("Project Date", date)}
+    </div>
+  </div>
+
+  <div class="bar">Proposed Sign — Day View</div>
+  <figure><img src="${input.dayPng}" alt="Proposed sign — day view"></figure>
+  ${
+    input.nightPng
+      ? `<div class="bar">Illuminated Night View</div>
+  <figure><img src="${input.nightPng}" alt="Proposed sign — night view"></figure>`
+      : ""
+  }
+
+  <div class="bar">Preliminary Estimate</div>
+  ${sectionsHtml}
+
+  <div class="invest">
+    <div class="label">Estimated Project Investment</div>
+    <div class="range">${range(input.totalLow, input.totalHigh)}</div>
+    <div class="sub">Final pricing confirmed at your consultation</div>
+  </div>
+
+  ${specsHtml}
+
+  <div class="next"><b>Next step:</b> We will review this concept, confirm
+  installation conditions, and finalize pricing during your scheduled
+  consultation.</div>
+  <p class="fine">This is a preliminary budget estimate based on
+  customer-provided information and photographic measurements. Final pricing
+  is subject to site verification, landlord requirements, permitting,
+  engineering, electrical conditions, access, and approved scope. Dimensions
+  are for sales estimation only; a final field survey is required before
+  production.</p>
+  <div class="footer">
+    <span>${HSC.name}</span><span>${HSC.address}</span>
+    <span>${HSC.phone}</span><span>${HSC.email}</span>
+  </div>
 </div>
-<div class="next"><b>Next step:</b> We will review this concept, confirm
-installation conditions, and finalize pricing during your scheduled
-consultation.</div>
-<p class="fine">This is a preliminary budget estimate based on customer-provided
-information and photographic measurements. Final pricing is subject to site
-verification, landlord requirements, permitting, engineering, electrical
-conditions, access, and approved scope. Dimensions are for sales estimation
-only; a final field survey is required before production.</p>
 </body></html>`;
 }
 
