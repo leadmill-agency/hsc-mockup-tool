@@ -84,11 +84,10 @@ export function isCabinet(el: SignElement): el is TextElement {
   return el.kind === "text" && el.signStyle === "cabinet";
 }
 
-/** Number of backer plates implied by the design (+$400 each). */
+/** Number of backer plates implied by the design (+$400 each): one per
+ *  free-standing panel element. */
 export function backerCount(elements: SignElement[]): number {
-  return elements.filter(
-    (e) => e.kind === "text" && e.signStyle !== "cabinet" && e.backer
-  ).length;
+  return elements.filter((e) => e.kind === "panel").length;
 }
 
 /** Overall cabinet box height in inches (text + face margins). */
@@ -117,7 +116,20 @@ export interface LogoElement {
   letterHeightRatio?: number; // letter height ÷ logo height; scales with resize
 }
 
-export type SignElement = TextElement | LogoElement;
+/** Free-standing backer panel: sized and positioned independently, with
+ *  text and logos layered on top. Prices as a backer plate (+$400 each). */
+export interface PanelElement {
+  id: string;
+  kind: "panel";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  fill?: string; // painted aluminum color; default dark bronze
+}
+
+export type SignElement = TextElement | LogoElement | PanelElement;
 
 export function refPixelLength(r: RefLine): number {
   return Math.hypot(r.x2 - r.x1, r.y2 - r.y1);

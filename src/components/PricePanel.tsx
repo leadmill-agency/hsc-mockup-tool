@@ -27,8 +27,10 @@ function letterCount(text: string): number {
 }
 
 export function elementsToPieces(elements: SignElement[], ipp: number): PieceGroup[] {
-  return elements.map((el) =>
-    el.kind === "text"
+  return elements.flatMap((el) =>
+    el.kind === "panel"
+      ? [] // panels price as backer-plate add-ons, not pieces
+      : el.kind === "text"
       ? el.signStyle === "cabinet"
         ? {
             // cabinet/box signs price as one piece at overall box height

@@ -14,7 +14,6 @@ import {
   Transformer,
 } from "react-konva";
 import {
-  BACKER_PAD_IN,
   backerCount,
   CABINET_PAD_IN,
   cabinetHeightInches,
@@ -24,6 +23,7 @@ import {
   Lighting,
   LogoElement,
   measureTextWidth,
+  PanelElement,
   SignElement,
   SIGN_FONT,
   TextElement,
@@ -292,6 +292,37 @@ function LogoNode({
   );
 }
 
+/** Free-standing painted backer panel; text/logos layer on top of it. */
+function PanelNode({
+  el,
+  scale,
+  night,
+  draggableProps,
+}: {
+  el: PanelElement;
+  scale: number;
+  night: boolean;
+  draggableProps: Konva.NodeConfig & { id: string };
+}) {
+  const fill = el.fill ?? "#3a2f28";
+  return (
+    <Rect
+      x={el.x * scale}
+      y={el.y * scale}
+      width={el.width * scale}
+      height={el.height * scale}
+      rotation={el.rotation}
+      fill={night ? shade(fill, -0.45) : fill}
+      cornerRadius={2 * scale}
+      shadowColor="black"
+      shadowBlur={10 * scale}
+      shadowOffsetY={6 * scale}
+      shadowOpacity={night ? 0.25 : 0.5}
+      {...draggableProps}
+    />
+  );
+}
+
 interface View {
   z: number;
   x: number;
@@ -399,6 +430,23 @@ export default function DesignStep({
     setNewText("");
   };
 
+  const addPanel = () => {
+    beginAction();
+    const w = image.naturalWidth * 0.3;
+    const el: PanelElement = {
+      id: `p${Date.now()}`,
+      kind: "panel",
+      x: image.naturalWidth * 0.35,
+      y: image.naturalHeight * 0.1,
+      width: w,
+      height: w * 0.55,
+      rotation: 0,
+      fill: "#3a2f28",
+    };
+    setElements((els) => [...els, el]);
+    setSelectedId(el.id);
+  };
+
   const addLogo = (file: File | undefined) => {
     if (!file) return;
     const reader = new FileReader();
@@ -430,28 +478,20 @@ export default function DesignStep({
     reader.readAsDataURL(file);
   };
 
-  /** Average the photo's pixels behind the raceway area — "painted to match". */
-  const sampleWallColor = (el: TextElement): string => {
-    const textW = measureTextWidth(el.text, el.fontSize, el.fontFamily);
-    const padPx = 2 / ipp;
-    const hPx = 8 / ipp;
+  /** Average the photo's pixels in a region — "painted to match wall". */
+  const sampleRegion = (
+    x: number,
+    y: number,
+    w: number,
+    h: number
+  ): string => {
     const c = document.createElement("canvas");
     c.width = 16;
     c.height = 4;
     const ctx = c.getContext("2d", { willReadFrequently: true });
     if (!ctx) return "#3f3c38";
     try {
-      ctx.drawImage(
-        image,
-        el.x - padPx,
-        el.y + el.fontSize / 2 - hPx / 2,
-        Math.max(8, textW + padPx * 2),
-        Math.max(4, hPx),
-        0,
-        0,
-        16,
-        4
-      );
+      ctx.drawImage(image, x, y, Math.max(8, w), Math.max(4, h), 0, 0, 16, 4);
       const d = ctx.getImageData(0, 0, 16, 4).data;
       let r = 0, g = 0, b = 0;
       const n = d.length / 4;
@@ -466,6 +506,18 @@ export default function DesignStep({
     } catch {
       return "#3f3c38";
     }
+  };
+
+  const sampleWallColor = (el: TextElement): string => {
+    const textW = measureTextWidth(el.text, el.fontSize, el.fontFamily);
+    const padPx = 2 / ipp;
+    const hPx = 8 / ipp;
+    return sampleRegion(
+      el.x - padPx,
+      el.y + el.fontSize / 2 - hPx / 2,
+      textW + padPx * 2,
+      hPx
+    );
   };
 
   const nodeDims = (node: Konva.Node, el: SignElement) =>
@@ -558,6 +610,17 @@ export default function DesignStep({
             x: node.x() / scale,
             y: node.y() / scale,
             fontSize: fontSizeForLetterHeight(inches, ipp, fam),
+            rotation: node.rotation(),
+          });
+        } else if (el.kind === "panel") {
+          // panels resize freely — width and height snap independently
+          const w = Math.max(6, Math.round(el.width * sx * ipp)) / ipp;
+          const h = Math.max(6, Math.round(el.height * sy * ipp)) / ipp;
+          update(el.id, {
+            x: node.x() / scale,
+            y: node.y() / scale,
+            width: w,
+            height: h,
             rotation: node.rotation(),
           });
         } else {
@@ -660,7 +723,7 @@ export default function DesignStep({
     const lightingLabel = (l?: Lighting) =>
       l === "halo" ? "halo-illuminated" : l === "none" ? "non-illuminated" : "front-lit";
 
-    const signItems = elements.map((el) => {
+    const signItems = elements.flatMap((el) => {
       if (el.kind === "text") {
         if (el.signStyle === "cabinet") {
           const bh = cabinetHeightInches(el, ipp);
@@ -676,10 +739,11 @@ export default function DesignStep({
         const count = el.text.replace(/\s/g, "").length;
         return {
           label: `“${el.text}” channel letters`,
-          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${el.raceway ? ", raceway mounted (painted to match wall)" : el.backer ? ", mounted on a painted backer panel" : ", flush mounted"}.`,
+          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${el.raceway ? ", raceway mounted (painted to match wall)" : ", flush mounted"}.`,
           ...toRange(h * count * cfg.coefficient),
         };
       }
+      if (el.kind === "panel") return [];
       const h = el.height * ipp;
       const w = el.width * ipp;
       if (el.priceAsLetters) {
@@ -888,6 +952,13 @@ export default function DesignStep({
           >
             Upload logo
           </button>
+          <button
+            onClick={addPanel}
+            title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
+            className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600"
+          >
+            Add panel
+          </button>
           <input
             ref={logoInputRef}
             type="file"
@@ -895,7 +966,67 @@ export default function DesignStep({
             className="hidden"
             onChange={(e) => addLogo(e.target.files?.[0])}
           />
-          {selected && (
+          {selected?.kind === "panel" && (
+            <>
+              <label className="flex items-center gap-2 text-sm text-zinc-300">
+                Panel
+                <input
+                  type="color"
+                  title="Panel color"
+                  value={selected.fill ?? "#3a2f28"}
+                  onChange={(e) => commit(selected.id, { fill: e.target.value })}
+                  className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                />
+              </label>
+              <button
+                onClick={() =>
+                  commit(selected.id, {
+                    fill: sampleRegion(
+                      selected.x,
+                      selected.y,
+                      selected.width,
+                      selected.height
+                    ),
+                  })
+                }
+                className="rounded-lg border border-zinc-600 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+                title="Sample the wall color behind the panel"
+              >
+                Match wall
+              </button>
+              <label className="flex items-center gap-1 text-sm text-zinc-300">
+                W (in)
+                <input
+                  type="number"
+                  min={6}
+                  step={1}
+                  value={Number((selected.width * ipp).toFixed(0))}
+                  onChange={(e) => {
+                    const inches = Number(e.target.value);
+                    if (inches > 0)
+                      commit(selected.id, { width: inches / ipp });
+                  }}
+                  className="w-16 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                />
+              </label>
+              <label className="flex items-center gap-1 text-sm text-zinc-300">
+                H (in)
+                <input
+                  type="number"
+                  min={6}
+                  step={1}
+                  value={Number((selected.height * ipp).toFixed(0))}
+                  onChange={(e) => {
+                    const inches = Number(e.target.value);
+                    if (inches > 0)
+                      commit(selected.id, { height: inches / ipp });
+                  }}
+                  className="w-16 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                />
+              </label>
+            </>
+          )}
+          {selected && selected.kind !== "panel" && (
             <select
               value={selected.lighting ?? "front"}
               onChange={(e) =>
@@ -911,7 +1042,7 @@ export default function DesignStep({
               ))}
             </select>
           )}
-          {selected && (selected.lighting ?? "front") !== "none" && (
+          {selected && selected.kind !== "panel" && (selected.lighting ?? "front") !== "none" && (
             <label className="flex items-center gap-2 text-sm text-zinc-300">
               LED
               <input
@@ -1053,35 +1184,6 @@ export default function DesignStep({
                     Match wall
                   </button>
                 </>
-              )}
-              {selected.signStyle !== "cabinet" && (
-                <label className="flex items-center gap-2 text-sm text-zinc-300">
-                  <input
-                    type="checkbox"
-                    checked={!!selected.backer}
-                    onChange={(e) =>
-                      commit(selected.id, {
-                        backer: e.target.checked,
-                        backerColor: e.target.checked
-                          ? selected.backerColor ?? "#3f3c38"
-                          : selected.backerColor,
-                      })
-                    }
-                    className="h-4 w-4 accent-amber-400"
-                  />
-                  Backer
-                </label>
-              )}
-              {selected.signStyle !== "cabinet" && selected.backer && (
-                <input
-                  type="color"
-                  title="Backer panel color"
-                  value={selected.backerColor ?? "#3f3c38"}
-                  onChange={(e) =>
-                    commit(selected.id, { backerColor: e.target.value })
-                  }
-                  className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
-                />
               )}
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 Letter height (in)
@@ -1293,52 +1395,49 @@ export default function DesignStep({
                   listening={false}
                 />
               )}
+              {/* free-standing backer panels render behind everything else */}
+              {elements.map((el) =>
+                el.kind === "panel" ? (
+                  <PanelNode
+                    key={el.id}
+                    el={el}
+                    scale={scale}
+                    night={night}
+                    draggableProps={commonProps(el)}
+                  />
+                ) : null
+              )}
               {elements.map((el) => {
-                // mounting hardware drawn behind the letters: raceway strip
-                // and/or backer panel (not applicable to cabinet signs)
-                if (el.kind !== "text" || el.signStyle === "cabinet") return null;
+                // raceway strip drawn behind its letters
+                if (
+                  el.kind !== "text" ||
+                  el.signStyle === "cabinet" ||
+                  !el.raceway
+                )
+                  return null;
                 const textW = measureTextWidth(el.text, el.fontSize, el.fontFamily);
                 const rwPad = 2 / ipp; // 2" side margins
                 const rwH = 8 / ipp; // standard ~8" raceway
-                const bkPadX = BACKER_PAD_IN.x / ipp;
-                const bkPadY = BACKER_PAD_IN.y / ipp;
                 return (
-                  <Group key={`mount-${el.id}`} listening={false}>
-                    {el.raceway && (
-                      <Rect
-                        x={(el.x - rwPad) * scale}
-                        y={(el.y + el.fontSize / 2 - rwH / 2) * scale}
-                        width={(textW + rwPad * 2) * scale}
-                        height={rwH * scale}
-                        rotation={el.rotation}
-                        fill={el.racewayColor ?? "#3f3c38"}
-                        cornerRadius={2 * scale}
-                        shadowColor="black"
-                        shadowBlur={6 * scale}
-                        shadowOffsetY={4 * scale}
-                        shadowOpacity={0.4}
-                      />
-                    )}
-                    {el.backer && (
-                      <Rect
-                        x={(el.x - bkPadX) * scale}
-                        y={(el.y - bkPadY) * scale}
-                        width={(textW + bkPadX * 2) * scale}
-                        height={(el.fontSize + bkPadY * 2) * scale}
-                        rotation={el.rotation}
-                        fill={el.backerColor ?? "#3f3c38"}
-                        cornerRadius={(2 / ipp) * scale}
-                        shadowColor="black"
-                        shadowBlur={8 * scale}
-                        shadowOffsetY={5 * scale}
-                        shadowOpacity={night ? 0.2 : 0.45}
-                      />
-                    )}
-                  </Group>
+                  <Rect
+                    key={`mount-${el.id}`}
+                    listening={false}
+                    x={(el.x - rwPad) * scale}
+                    y={(el.y + el.fontSize / 2 - rwH / 2) * scale}
+                    width={(textW + rwPad * 2) * scale}
+                    height={rwH * scale}
+                    rotation={el.rotation}
+                    fill={el.racewayColor ?? "#3f3c38"}
+                    cornerRadius={2 * scale}
+                    shadowColor="black"
+                    shadowBlur={6 * scale}
+                    shadowOffsetY={4 * scale}
+                    shadowOpacity={0.4}
+                  />
                 );
               })}
               {elements.map((el) =>
-                el.kind === "text" ? (
+                el.kind === "panel" ? null : el.kind === "text" ? (
                   <TextSign
                     key={el.id}
                     el={el}
@@ -1393,7 +1492,7 @@ export default function DesignStep({
               })()}
               <Transformer
                 ref={trRef}
-                keepRatio
+                keepRatio={selected?.kind !== "panel"}
                 flipEnabled={false}
                 boundBoxFunc={(oldBox, newBox) =>
                   newBox.width < 8 || newBox.height < 8 ? oldBox : newBox
