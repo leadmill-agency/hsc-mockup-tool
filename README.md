@@ -78,5 +78,14 @@ Two invariants worth knowing before changing code:
 
 Validated against two real jobs (GTS Equipment, Peach Cobbler Factory) —
 dimensions land within drag precision of the designer's drawings and pricing
-matches hand calculations. Not yet built: saved projects, night view,
-proposal PDF, CRM/funnel integration (see PRD §17 for the release plan).
+matches hand calculations.
+
+Also built: saved projects (IndexedDB autosave with a project list — no
+backend), day/night toggle (front-lit glow, halo wash, or dimmed
+non-illuminated per element's lighting type), and a "Proposal" button that
+opens a print-ready Preliminary Sign Concept & Budget Estimate (day + night
+mockups, dimensions, investment range, disclaimers) — the browser's Save as
+PDF stands in for server-side rendering.
+
+Not yet built: multi-user/server storage, CRM/funnel integration, the
+customer-facing wizard (see PRD §17 for the release plan).

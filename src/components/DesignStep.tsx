@@ -26,10 +26,17 @@ import {
   textLetterHeightInches,
   textWidthInches,
 } from "@/lib/types";
-import { formatFeetInches } from "@/lib/pricing";
+import {
+  calculatePricing,
+  formatFeetInches,
+  PricingConfig,
+} from "@/lib/pricing";
+import { racewayCount } from "@/lib/types";
 import { removeUniformBackground } from "@/lib/removeBg";
 import { loadGoogleFont } from "@/lib/fonts";
+import { writeProposal } from "@/lib/proposal";
 import FontPicker from "@/components/FontPicker";
+import { elementsToPieces } from "@/components/PricePanel";
 
 interface Props {
   image: HTMLImageElement;
@@ -41,6 +48,9 @@ interface Props {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  projectName: string;
+  backerPlates: number;
+  pricingCfg: PricingConfig;
   onBack: () => void;
   sidebar: ReactNode;
 }
@@ -79,33 +89,45 @@ const rectHitFunc = (ctx: Konva.Context, shape: Konva.Shape) => {
   ctx.fillStrokeShape(shape);
 };
 
-/** Channel letters: trim-capped face over an extruded return with a shadow. */
+/** Channel letters: trim-capped face over an extruded return with a shadow.
+ *  At night the lighting type drives the look: front-lit faces glow, halo-lit
+ *  letters go dark with an LED wash behind them, non-illuminated just dims. */
 function TextSign({
   el,
   scale,
   ipp,
+  night,
   draggableProps,
 }: {
   el: TextElement;
   scale: number;
   ipp: number;
+  night: boolean;
   draggableProps: Konva.NodeConfig & { id: string };
 }) {
   const family = el.fontFamily ?? SIGN_FONT;
   const trim = el.trimColor ?? "#26221f";
+  const lighting: Lighting = el.lighting ?? "front";
   const returnCol = shade(trim, 0.12);
   const depthPx = Math.max(
     1.5,
     ((RETURN_DEPTH_IN * DEPTH_FORESHORTEN) / ipp) * scale
   );
   const trimW = Math.max(1, ((0.5 / ipp) * scale) / 2); // ~0.5" trim cap
+  const fs = el.fontSize * scale;
   const common = {
     text: el.text,
-    fontSize: el.fontSize * scale,
+    fontSize: fs,
     fontFamily: family,
     fontStyle: "bold",
     listening: false,
   } as const;
+
+  const dimmed = night && lighting === "none";
+  const haloNight = night && lighting === "halo";
+  const frontNight = night && lighting === "front";
+  const faceFill = dimmed || haloNight ? shade(el.fill, -0.55) : el.fill;
+  const returnShade = night ? -0.55 : 0;
 
   return (
     <Group
@@ -114,18 +136,31 @@ function TextSign({
       rotation={el.rotation}
       {...draggableProps}
     >
-      {/* shadow caster, deepest copy */}
-      <KText
-        {...common}
-        x={depthPx}
-        y={depthPx}
-        fill={shade(trim, -0.35)}
-        shadowColor="black"
-        shadowBlur={10 * scale + depthPx}
-        shadowOffsetX={depthPx * 0.8}
-        shadowOffsetY={depthPx * 1.4}
-        shadowOpacity={0.55}
-      />
+      {/* halo LED wash behind the letters */}
+      {haloNight && (
+        <KText
+          {...common}
+          fill="#fff3d6"
+          opacity={0.9}
+          shadowColor="#ffe9b3"
+          shadowBlur={fs * 0.9}
+          shadowOpacity={0.95}
+        />
+      )}
+      {/* shadow caster, deepest copy (day only — night has no sun) */}
+      {!night && (
+        <KText
+          {...common}
+          x={depthPx}
+          y={depthPx}
+          fill={shade(trim, -0.35)}
+          shadowColor="black"
+          shadowBlur={10 * scale + depthPx}
+          shadowOffsetX={depthPx * 0.8}
+          shadowOffsetY={depthPx * 1.4}
+          shadowOpacity={0.55}
+        />
+      )}
       {/* extruded return */}
       {Array.from({ length: EXTRUDE_STEPS }, (_, i) => {
         const t = 1 - (i + 1) / EXTRUDE_STEPS;
@@ -135,20 +170,34 @@ function TextSign({
             {...common}
             x={depthPx * t}
             y={depthPx * t}
-            fill={shade(returnCol, -0.1 * (1 - t))}
+            fill={shade(shade(returnCol, -0.1 * (1 - t)), returnShade)}
           />
         );
       })}
+      {/* front-lit glow underlay */}
+      {frontNight && (
+        <KText
+          {...common}
+          fill={el.fill}
+          opacity={0.4}
+          shadowColor={el.fill}
+          shadowBlur={fs * 1.1}
+          shadowOpacity={0.9}
+        />
+      )}
       {/* face with trim cap; this copy is the hit target for drag/select */}
       <KText
         text={el.text}
-        fontSize={el.fontSize * scale}
+        fontSize={fs}
         fontFamily={family}
         fontStyle="bold"
-        fill={el.fill}
-        stroke={trim}
+        fill={faceFill}
+        stroke={night ? shade(trim, -0.4) : trim}
         strokeWidth={trimW}
         fillAfterStrokeEnabled
+        shadowColor={frontNight ? el.fill : undefined}
+        shadowBlur={frontNight ? fs * 0.45 : 0}
+        shadowOpacity={frontNight ? 0.95 : 0}
         listening
       />
     </Group>
@@ -158,10 +207,12 @@ function TextSign({
 function LogoNode({
   el,
   scale,
+  night,
   draggableProps,
 }: {
   el: LogoElement;
   scale: number;
+  night: boolean;
   draggableProps: Konva.NodeConfig & { id: string };
 }) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -171,6 +222,7 @@ function LogoNode({
     i.src = el.src;
   }, [el.src]);
   if (!img) return null;
+  const lit = night && (el.lighting ?? "front") !== "none";
   return (
     <KImage
       image={img}
@@ -180,10 +232,11 @@ function LogoNode({
       height={el.height * scale}
       rotation={el.rotation}
       hitFunc={rectHitFunc}
-      shadowColor="black"
-      shadowBlur={8 * scale}
-      shadowOffsetY={5 * scale}
-      shadowOpacity={0.45}
+      opacity={night && !lit ? 0.55 : 1}
+      shadowColor={lit ? "#fff3d6" : "black"}
+      shadowBlur={lit ? el.height * scale * 0.6 : 8 * scale}
+      shadowOffsetY={lit ? 0 : 5 * scale}
+      shadowOpacity={lit ? 0.9 : night ? 0 : 0.45}
       {...draggableProps}
     />
   );
@@ -205,6 +258,9 @@ export default function DesignStep({
   redo,
   canUndo,
   canRedo,
+  projectName,
+  backerPlates,
+  pricingCfg,
   onBack,
   sidebar,
 }: Props) {
@@ -223,6 +279,7 @@ export default function DesignStep({
   const [liveDims, setLiveDims] = useState<{ w: number; h: number } | null>(null);
   const [showDims, setShowDims] = useState(true);
   const [view, setView] = useState<View>({ z: 1, x: 0, y: 0 });
+  const [night, setNight] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
@@ -476,26 +533,64 @@ export default function DesignStep({
     zoomTo(view.z * (e.evt.deltaY > 0 ? 1 / 1.15 : 1.15), pointer);
   };
 
-  const exportPng = () => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const prevView = view;
-    setSelectedId(null);
-    setShowDims(false);
-    setView({ z: 1, x: 0, y: 0 });
-    requestAnimationFrame(() => {
+  /** Full-resolution capture with clean view (no selection, badges, zoom). */
+  const capture = (): Promise<string> =>
+    new Promise((resolve) => {
+      const stage = stageRef.current;
+      if (!stage) return resolve("");
+      const prevView = view;
+      setSelectedId(null);
+      setShowDims(false);
+      setView({ z: 1, x: 0, y: 0 });
       requestAnimationFrame(() => {
-        const url = stage.toDataURL({
-          pixelRatio: 1 / scale,
-          mimeType: "image/png",
+        requestAnimationFrame(() => {
+          const url = stage.toDataURL({
+            pixelRatio: 1 / scale,
+            mimeType: "image/png",
+          });
+          setShowDims(true);
+          setView(prevView);
+          resolve(url);
         });
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "hsc-mockup.png";
-        a.click();
-        setShowDims(true);
-        setView(prevView);
       });
+    });
+
+  const exportPng = async () => {
+    const url = await capture();
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "hsc-mockup.png";
+    a.click();
+  };
+
+  const makeProposal = async () => {
+    // open synchronously so the popup isn't blocked, fill in async
+    const win = window.open("about:blank", "_blank");
+    if (!win) {
+      alert("Allow pop-ups for this site to open the proposal.");
+      return;
+    }
+    win.document.write("<title>Preparing proposal…</title>");
+    const wasNight = night;
+    setNight(false);
+    await new Promise((r) => setTimeout(r, 60));
+    const dayPng = await capture();
+    setNight(true);
+    await new Promise((r) => setTimeout(r, 60));
+    const nightPng = await capture();
+    setNight(wasNight);
+    const pieces = elementsToPieces(elements, ipp);
+    const wireways = racewayCount(elements);
+    const pricing = calculatePricing(pieces, backerPlates, wireways, pricingCfg);
+    writeProposal(win, {
+      projectName,
+      dayPng,
+      nightPng,
+      pieces,
+      pricing,
+      wireways,
+      backerPlates,
     });
   };
 
@@ -792,11 +887,32 @@ export default function DesignStep({
             </button>
           )}
           <div className="grow" />
+          <div className="flex overflow-hidden rounded-lg border border-zinc-600 text-sm">
+            <button
+              onClick={() => setNight(false)}
+              className={`px-3 py-2 ${!night ? "bg-amber-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`}
+            >
+              ☀ Day
+            </button>
+            <button
+              onClick={() => setNight(true)}
+              className={`px-3 py-2 ${night ? "bg-indigo-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`}
+            >
+              ☾ Night
+            </button>
+          </div>
           <button
             onClick={exportPng}
             className="rounded-lg border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
           >
             Export PNG
+          </button>
+          <button
+            onClick={makeProposal}
+            disabled={elements.length === 0}
+            className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
+          >
+            Proposal
           </button>
         </div>
 
@@ -827,6 +943,17 @@ export default function DesignStep({
                 height={stageH}
                 onMouseDown={() => setSelectedId(null)}
               />
+              {night && (
+                <Rect
+                  x={0}
+                  y={0}
+                  width={stageW}
+                  height={stageH}
+                  fill="#0b1120"
+                  opacity={0.72}
+                  listening={false}
+                />
+              )}
               {elements.map((el) => {
                 // raceway box drawn behind its letters
                 if (el.kind !== "text" || !el.raceway) return null;
@@ -860,6 +987,7 @@ export default function DesignStep({
                     el={el}
                     scale={scale}
                     ipp={ipp}
+                    night={night}
                     draggableProps={commonProps(el)}
                   />
                 ) : (
@@ -867,6 +995,7 @@ export default function DesignStep({
                     key={el.id}
                     el={el}
                     scale={scale}
+                    night={night}
                     draggableProps={commonProps(el)}
                   />
                 )

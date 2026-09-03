@@ -1,12 +1,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import UploadStep from "@/components/UploadStep";
 import SquareUpStep from "@/components/SquareUpStep";
 import PricePanel from "@/components/PricePanel";
 import { DEFAULT_SQUARE, SquareParams } from "@/lib/warp";
 import { inchesPerPixel, MeasurementState, SignElement } from "@/lib/types";
+import { DEFAULT_PRICING, PricingConfig } from "@/lib/pricing";
+import {
+  blobToImage,
+  dataUrlToBlob,
+  deleteProject,
+  getProject,
+  listProjects,
+  makeThumbnail,
+  ProjectSummary,
+  saveProject,
+} from "@/lib/store";
 
 const MeasureStep = dynamic(() => import("@/components/MeasureStep"), { ssr: false });
 const DesignStep = dynamic(() => import("@/components/DesignStep"), { ssr: false });
@@ -21,6 +32,12 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 
 export default function Home() {
+  const [screen, setScreen] = useState<"home" | "work">("home");
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [loadingProject, setLoadingProject] = useState(false);
+
   const [step, setStep] = useState<Step>("upload");
   const [original, setOriginal] = useState<HTMLImageElement | null>(null);
   const [corrected, setCorrected] = useState<HTMLImageElement | null>(null);
@@ -28,6 +45,7 @@ export default function Home() {
   const [measurement, setMeasurement] = useState<MeasurementState | null>(null);
   const [elements, setElementsState] = useState<SignElement[]>([]);
   const [backerPlates, setBackerPlates] = useState(0);
+  const [pricingCfg, setPricingCfg] = useState<PricingConfig>(DEFAULT_PRICING);
 
   // Undo history: beginAction() snapshots the current design before a discrete
   // change (drag start, transform start, add, delete, property edit).
@@ -68,6 +86,112 @@ export default function Home() {
 
   const ipp = inchesPerPixel(measurement);
 
+  const refreshProjects = useCallback(() => {
+    listProjects().then(setProjects).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshProjects();
+  }, [refreshProjects]);
+
+  // ---- autosave (debounced) ----
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (screen !== "work" || !projectId || !original || loadingProject) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const [originalBlob, correctedBlob] = await Promise.all([
+          dataUrlToBlob(original.src),
+          corrected ? dataUrlToBlob(corrected.src) : Promise.resolve(undefined),
+        ]);
+        await saveProject({
+          id: projectId,
+          name: projectName || "Untitled project",
+          updatedAt: Date.now(),
+          thumbnail: makeThumbnail(corrected ?? original),
+          originalBlob,
+          correctedBlob: correctedBlob ?? undefined,
+          squareParams,
+          measurement,
+          elements,
+          backerPlates,
+          step,
+        });
+        refreshProjects();
+      } catch {
+        // autosave must never break the editor
+      }
+    }, 800);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [
+    screen,
+    projectId,
+    projectName,
+    original,
+    corrected,
+    squareParams,
+    measurement,
+    elements,
+    backerPlates,
+    step,
+    loadingProject,
+    refreshProjects,
+  ]);
+
+  const newProject = () => {
+    setProjectId(crypto.randomUUID());
+    setProjectName(
+      `Project ${new Date().toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })}`
+    );
+    setOriginal(null);
+    setCorrected(null);
+    setMeasurement(null);
+    setElementsState([]);
+    setBackerPlates(0);
+    setSquareParams(DEFAULT_SQUARE);
+    resetHistory();
+    setStep("upload");
+    setScreen("work");
+  };
+
+  const openProject = async (id: string) => {
+    setLoadingProject(true);
+    try {
+      const p = await getProject(id);
+      if (!p) return;
+      const [orig, corr] = await Promise.all([
+        p.originalBlob ? blobToImage(p.originalBlob) : Promise.resolve(null),
+        p.correctedBlob ? blobToImage(p.correctedBlob) : Promise.resolve(null),
+      ]);
+      // Konva reads image.src for exports; ensure data URLs, not object URLs,
+      // survive re-saves — blobToImage uses object URLs which work for canvas.
+      setProjectId(p.id);
+      setProjectName(p.name);
+      setOriginal(orig);
+      setCorrected(corr);
+      setSquareParams(p.squareParams);
+      setMeasurement(p.measurement);
+      setElementsState(p.elements);
+      setBackerPlates(p.backerPlates);
+      resetHistory();
+      const s = (["upload", "square", "measure", "design"] as Step[]).includes(
+        p.step as Step
+      )
+        ? (p.step as Step)
+        : "upload";
+      setStep(orig ? s : "upload");
+      setScreen("work");
+    } finally {
+      setLoadingProject(false);
+    }
+  };
+
   const reached = (s: Step): boolean => {
     switch (s) {
       case "upload":
@@ -92,16 +216,103 @@ export default function Home() {
     inches: 0,
   });
 
+  if (screen === "home") {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-100">
+        <header className="border-b border-zinc-800 px-6 py-4">
+          <div className="mx-auto max-w-5xl">
+            <h1 className="text-lg font-bold tracking-tight">
+              <span className="text-amber-400">HSC</span> Sign Mockup Tool
+            </h1>
+          </div>
+        </header>
+        <main className="mx-auto max-w-5xl px-6 py-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Projects</h2>
+            <button
+              onClick={newProject}
+              className="rounded-lg bg-amber-400 px-5 py-2 font-semibold text-zinc-950 hover:bg-amber-300"
+            >
+              + New project
+            </button>
+          </div>
+          {projects.length === 0 ? (
+            <p className="mt-10 text-center text-zinc-500">
+              No saved projects yet — start one and it will autosave here.
+            </p>
+          ) : (
+            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {projects.map((p) => (
+                <div
+                  key={p.id}
+                  className="group overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 transition-colors hover:border-amber-400/60"
+                >
+                  <button
+                    onClick={() => openProject(p.id)}
+                    className="block w-full text-left"
+                  >
+                    {p.thumbnail ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.thumbnail}
+                        alt=""
+                        className="h-32 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-32 items-center justify-center text-3xl">
+                        🪧
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <div className="truncate text-sm font-medium text-zinc-100">
+                        {p.name}
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        {new Date(p.updatedAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete “${p.name}”? This cannot be undone.`))
+                        deleteProject(p.id).then(refreshProjects);
+                    }}
+                    className="w-full border-t border-zinc-800 py-1.5 text-xs text-zinc-500 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4">
-        <div className="mx-auto flex max-w-7xl items-center gap-6">
+        <div className="mx-auto flex max-w-7xl items-center gap-4">
+          <button
+            onClick={() => {
+              setScreen("home");
+              refreshProjects();
+            }}
+            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800"
+            title="Back to projects (work is autosaved)"
+          >
+            ← Projects
+          </button>
           <h1 className="text-lg font-bold tracking-tight">
-            <span className="text-amber-400">HSC</span> Sign Mockup Tool
-            <span className="ml-2 rounded bg-zinc-800 px-2 py-0.5 text-xs font-normal text-zinc-400">
-              internal · milestone 1
-            </span>
+            <span className="text-amber-400">HSC</span>
           </h1>
+          <input
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            className="w-56 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-zinc-100 hover:border-zinc-700 focus:border-zinc-600 focus:outline-none"
+            title="Project name"
+          />
           <nav className="flex gap-1 text-sm">
             {STEPS.map((s) => (
               <button
@@ -132,6 +343,7 @@ export default function Home() {
               setMeasurement(null);
               setElementsState([]);
               setSquareParams(DEFAULT_SQUARE);
+              resetHistory();
               setStep("square");
             }}
           />
@@ -176,6 +388,9 @@ export default function Home() {
             redo={redo}
             canUndo={pastRef.current.length > 0}
             canRedo={futureRef.current.length > 0}
+            projectName={projectName}
+            backerPlates={backerPlates}
+            pricingCfg={pricingCfg}
             onBack={() => setStep("measure")}
             sidebar={
               <PricePanel
@@ -183,6 +398,8 @@ export default function Home() {
                 ipp={ipp}
                 backerPlates={backerPlates}
                 setBackerPlates={setBackerPlates}
+                cfg={pricingCfg}
+                setCfg={(updater) => setPricingCfg((c) => updater(c))}
               />
             }
           />

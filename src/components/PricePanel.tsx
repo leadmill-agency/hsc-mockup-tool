@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import {
   calculatePricing,
-  DEFAULT_PRICING,
   formatFeetInches,
   formatUsd,
   PieceGroup,
@@ -16,6 +14,8 @@ interface Props {
   ipp: number;
   backerPlates: number;
   setBackerPlates: (n: number) => void;
+  cfg: PricingConfig;
+  setCfg: (updater: (c: PricingConfig) => PricingConfig) => void;
 }
 
 function letterCount(text: string): number {
@@ -80,8 +80,9 @@ export default function PricePanel({
   ipp,
   backerPlates,
   setBackerPlates,
+  cfg,
+  setCfg,
 }: Props) {
-  const [cfg, setCfg] = useState<PricingConfig>(DEFAULT_PRICING);
   const pieces = elementsToPieces(elements, ipp);
   const wireways = racewayCount(elements);
   const pricing = calculatePricing(pieces, backerPlates, wireways, cfg);

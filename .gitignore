@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local demo assets extracted from customer PDFs — not for the repo
 public/demo-*.png
+
+# dev snapshot output
+.dev-snaps/
