@@ -141,6 +141,25 @@ Poor-fit traffic should be routed to a manual inquiry form or disqualified witho
 
 ## 7. End-to-End Funnel
 
+### 7.0 The two customer flows
+
+There are ultimately two distinct customer flows built on the same tool:
+
+1. **Houston consultation flow (first):** Meta ad → offer is booking a
+   consultation → booking email contains the customer's personal mockup-tool
+   link → they build their own mockup → the proposal (estimate range) is
+   emailed automatically → the salesperson closes on the call with the
+   customer's own design in hand.
+2. **National self-serve flow (later, own national brand):** customer lands
+   on the website → mocks up their sign → sees a firm price (not a range) →
+   pays the sign deposit online → installation and permitting are sold as
+   add-ons. No mandatory call; sales assist is an escalation path, not a
+   gate.
+
+The internal staff tool, the customer wizard, the pricing engine, and the
+proposal generator are shared between both; the flows differ in gating
+(booking vs. none) and price presentation (range vs. firm).
+
 ```mermaid
 flowchart TD
     A[Paid ad] --> B[Landing page]
@@ -1282,16 +1301,22 @@ Add:
 - Proposal version comparison
 - Deeper CRM automation
 
-### Phase 4: National Expansion
+### Phase 4: National Self-Serve (own national brand)
+
+The second customer flow (§7.0): website → mockup → firm price → online
+deposit, with installation and permitting sold as add-ons rather than
+bundled. No mandatory consultation.
 
 Add:
 
-- Installer-network pricing
-- Geographic installation modifiers
+- Firm sign pricing (the range collapses to a committed sign price at
+  target margin; install/permit priced separately as add-ons)
+- Online deposit checkout
+- Installation + permit upsell flow
+- Installer-network pricing and geographic installation modifiers
 - Permit and engineering allowances by market
 - Additional sign products
 - Multi-location projects
-- Customer payment and deposit workflow
 
 ---
 
