@@ -1,6 +1,27 @@
 // All coordinates are stored in corrected-image pixel space; the canvas
 // stages apply a uniform display scale on top.
 
+export type RefKind = "width" | "door" | "custom";
+
+export interface RefLine {
+  id: string;
+  kind: RefKind;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  feet: number;
+  inches: number;
+  /** A preset (door: 7 ft) only counts once the user has positioned it —
+   *  an untouched default must never silently drive pricing. */
+  placed: boolean;
+}
+
+export interface Measurement {
+  references: RefLine[];
+}
+
+/** Legacy single-line shape from older saved projects. */
 export interface MeasurementState {
   x1: number;
   y1: number;
@@ -8,6 +29,28 @@ export interface MeasurementState {
   y2: number;
   feet: number;
   inches: number;
+}
+
+export function migrateMeasurement(
+  m: Measurement | MeasurementState | null
+): Measurement | null {
+  if (!m) return null;
+  if ("references" in m) return m;
+  return {
+    references: [
+      {
+        id: "legacy",
+        kind: "width",
+        x1: m.x1,
+        y1: m.y1,
+        x2: m.x2,
+        y2: m.y2,
+        feet: m.feet,
+        inches: m.inches,
+        placed: true,
+      },
+    ],
+  };
 }
 
 export type Lighting = "front" | "halo" | "none";
@@ -50,21 +93,44 @@ export interface LogoElement {
 
 export type SignElement = TextElement | LogoElement;
 
-export function measurementPixelLength(m: MeasurementState): number {
-  return Math.hypot(m.x2 - m.x1, m.y2 - m.y1);
+export function refPixelLength(r: RefLine): number {
+  return Math.hypot(r.x2 - r.x1, r.y2 - r.y1);
 }
 
-export function measurementKnownInches(m: MeasurementState): number {
-  return m.feet * 12 + m.inches;
+export function refKnownInches(r: RefLine): number {
+  return r.feet * 12 + r.inches;
 }
 
-/** Inches per corrected-image pixel, or null if not measurable yet. */
-export function inchesPerPixel(m: MeasurementState | null): number | null {
-  if (!m) return null;
-  const px = measurementPixelLength(m);
-  const inches = measurementKnownInches(m);
-  if (px < 10 || inches <= 0) return null;
-  return inches / px;
+/** A reference contributes to the scale once it has a real value and, for
+ *  presets like the 7-ft door, has been positioned by the user. */
+export function refActive(r: RefLine): boolean {
+  return refPixelLength(r) >= 10 && refKnownInches(r) > 0 && r.placed;
+}
+
+/** Combined inches-per-pixel: active references weighted by line length
+ *  (total inches ÷ total pixels), or null when nothing is measurable. */
+export function inchesPerPixel(m: Measurement | null): number | null {
+  const active = m?.references.filter(refActive) ?? [];
+  if (active.length === 0) return null;
+  let totalInches = 0;
+  let totalPx = 0;
+  for (const r of active) {
+    totalInches += refKnownInches(r);
+    totalPx += refPixelLength(r);
+  }
+  return totalPx > 0 ? totalInches / totalPx : null;
+}
+
+/** Worst pairwise disagreement between active references (0.2 = 20%),
+ *  or null with fewer than two. The built-in sanity check: a big mismatch
+ *  means a wrong number or a reference on a different wall plane. */
+export function referenceMismatch(m: Measurement | null): number | null {
+  const active = m?.references.filter(refActive) ?? [];
+  if (active.length < 2) return null;
+  const ipps = active.map((r) => refKnownInches(r) / refPixelLength(r));
+  const min = Math.min(...ipps);
+  const max = Math.max(...ipps);
+  return min > 0 ? max / min - 1 : null;
 }
 
 export const SIGN_FONT = "'Arial Black', Arial, sans-serif";

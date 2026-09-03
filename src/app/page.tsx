@@ -6,7 +6,12 @@ import UploadStep from "@/components/UploadStep";
 import SquareUpStep from "@/components/SquareUpStep";
 import PricePanel from "@/components/PricePanel";
 import { DEFAULT_SQUARE, SquareParams } from "@/lib/warp";
-import { inchesPerPixel, MeasurementState, SignElement } from "@/lib/types";
+import {
+  inchesPerPixel,
+  Measurement,
+  migrateMeasurement,
+  SignElement,
+} from "@/lib/types";
 import { DEFAULT_PRICING, PricingConfig } from "@/lib/pricing";
 import {
   blobToImage,
@@ -42,7 +47,7 @@ export default function Home() {
   const [original, setOriginal] = useState<HTMLImageElement | null>(null);
   const [corrected, setCorrected] = useState<HTMLImageElement | null>(null);
   const [squareParams, setSquareParams] = useState<SquareParams>(DEFAULT_SQUARE);
-  const [measurement, setMeasurement] = useState<MeasurementState | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
   const [elements, setElementsState] = useState<SignElement[]>([]);
   const [backerPlates, setBackerPlates] = useState(0);
   const [pricingCfg, setPricingCfg] = useState<PricingConfig>(DEFAULT_PRICING);
@@ -176,7 +181,7 @@ export default function Home() {
       setOriginal(orig);
       setCorrected(corr);
       setSquareParams(p.squareParams);
-      setMeasurement(p.measurement);
+      setMeasurement(migrateMeasurement(p.measurement));
       setElementsState(p.elements);
       setBackerPlates(p.backerPlates);
       resetHistory();
@@ -205,15 +210,34 @@ export default function Home() {
     }
   };
 
-  // Horizontal storefront-width line; width intentionally starts empty so a
-  // guessed default can never silently drive the pricing.
-  const defaultMeasurement = (img: HTMLImageElement): MeasurementState => ({
-    x1: img.naturalWidth * 0.12,
-    y1: img.naturalHeight * 0.55,
-    x2: img.naturalWidth * 0.88,
-    y2: img.naturalHeight * 0.55,
-    feet: 0,
-    inches: 0,
+  // Two starting references: a horizontal storefront-width line (value blank —
+  // a guessed default must never silently drive pricing) and a 7-ft door line
+  // that only counts once the user drags it onto an actual door.
+  const defaultMeasurement = (img: HTMLImageElement): Measurement => ({
+    references: [
+      {
+        id: "width",
+        kind: "width",
+        x1: img.naturalWidth * 0.12,
+        y1: img.naturalHeight * 0.55,
+        x2: img.naturalWidth * 0.88,
+        y2: img.naturalHeight * 0.55,
+        feet: 0,
+        inches: 0,
+        placed: true,
+      },
+      {
+        id: "door",
+        kind: "door",
+        x1: img.naturalWidth * 0.32,
+        y1: img.naturalHeight * 0.72,
+        x2: img.naturalWidth * 0.32,
+        y2: img.naturalHeight * 0.45,
+        feet: 7,
+        inches: 0,
+        placed: false,
+      },
+    ],
   });
 
   if (screen === "home") {

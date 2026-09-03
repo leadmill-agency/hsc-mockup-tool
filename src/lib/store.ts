@@ -2,7 +2,7 @@
 // plain state. No backend: the internal tool runs entirely in the browser.
 
 import { SquareParams } from "@/lib/warp";
-import { MeasurementState, SignElement } from "@/lib/types";
+import { Measurement, SignElement } from "@/lib/types";
 
 export interface ProjectRecord {
   id: string;
@@ -12,7 +12,7 @@ export interface ProjectRecord {
   originalBlob?: Blob;
   correctedBlob?: Blob;
   squareParams: SquareParams;
-  measurement: MeasurementState | null;
+  measurement: Measurement | null;
   elements: SignElement[];
   backerPlates: number;
   step: string;
