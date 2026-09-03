@@ -69,6 +69,7 @@ export interface TextElement {
   racewayColor?: string; // painted to match the wall; sampled from the photo
   trimColor?: string; // trim cap + return color; default dark bronze
   lighting?: Lighting; // default "front"; drives night rendering + proposal
+  ledColor?: string; // LED color: halo wash / front-lit glow at night
 }
 
 export interface LogoElement {
@@ -84,6 +85,7 @@ export interface LogoElement {
   processedSrc?: string; // background removed, when confidently detected
   bgRemoved?: boolean;
   lighting?: Lighting;
+  ledColor?: string;
   // branded lockups fabricated as channel letters price per letter, not as
   // one piece — staff enter the count and true letter height
   priceAsLetters?: boolean;

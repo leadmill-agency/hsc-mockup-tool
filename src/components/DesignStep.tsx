@@ -128,6 +128,9 @@ function TextSign({
   const frontNight = night && lighting === "front";
   const faceFill = dimmed || haloNight ? shade(el.fill, -0.55) : el.fill;
   const returnShade = night ? -0.55 : 0;
+  // halo wash defaults to warm white; front-lit glow defaults to face color
+  const haloLed = el.ledColor ?? "#fff3d6";
+  const frontLed = el.ledColor ?? el.fill;
 
   return (
     <Group
@@ -140,9 +143,9 @@ function TextSign({
       {haloNight && (
         <KText
           {...common}
-          fill="#fff3d6"
+          fill={haloLed}
           opacity={0.9}
-          shadowColor="#ffe9b3"
+          shadowColor={haloLed}
           shadowBlur={fs * 0.9}
           shadowOpacity={0.95}
         />
@@ -178,9 +181,9 @@ function TextSign({
       {frontNight && (
         <KText
           {...common}
-          fill={el.fill}
+          fill={frontLed}
           opacity={0.4}
-          shadowColor={el.fill}
+          shadowColor={frontLed}
           shadowBlur={fs * 1.1}
           shadowOpacity={0.9}
         />
@@ -195,7 +198,7 @@ function TextSign({
         stroke={night ? shade(trim, -0.4) : trim}
         strokeWidth={trimW}
         fillAfterStrokeEnabled
-        shadowColor={frontNight ? el.fill : undefined}
+        shadowColor={frontNight ? frontLed : undefined}
         shadowBlur={frontNight ? fs * 0.45 : 0}
         shadowOpacity={frontNight ? 0.95 : 0}
         listening
@@ -223,6 +226,7 @@ function LogoNode({
   }, [el.src]);
   if (!img) return null;
   const lit = night && (el.lighting ?? "front") !== "none";
+  const led = el.ledColor ?? "#fff3d6";
   return (
     <KImage
       image={img}
@@ -233,7 +237,7 @@ function LogoNode({
       rotation={el.rotation}
       hitFunc={rectHitFunc}
       opacity={night && !lit ? 0.55 : 1}
-      shadowColor={lit ? "#fff3d6" : "black"}
+      shadowColor={lit ? led : "black"}
       shadowBlur={lit ? el.height * scale * 0.6 : 8 * scale}
       shadowOffsetY={lit ? 0 : 5 * scale}
       shadowOpacity={lit ? 0.9 : night ? 0 : 0.45}
@@ -672,6 +676,26 @@ export default function DesignStep({
                 </option>
               ))}
             </select>
+          )}
+          {selected && (selected.lighting ?? "front") !== "none" && (
+            <label className="flex items-center gap-2 text-sm text-zinc-300">
+              LED
+              <input
+                type="color"
+                title="LED color — the glow at night (halo wash / front-lit)"
+                value={
+                  selected.ledColor ??
+                  (selected.kind === "text" &&
+                  (selected.lighting ?? "front") === "front"
+                    ? selected.fill
+                    : "#fff3d6")
+                }
+                onChange={(e) =>
+                  commit(selected.id, { ledColor: e.target.value })
+                }
+                className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+              />
+            </label>
           )}
           {selected?.kind === "text" && (
             <>
