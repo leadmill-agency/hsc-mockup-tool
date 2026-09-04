@@ -1625,23 +1625,6 @@ export default function DesignStep({
               </button>
             </>
           )}
-          {customerMode && (
-            <button
-              onClick={() => {
-                if (customerEmail) {
-                  void sendProposalTo(customerEmail);
-                  return;
-                }
-                setEmailDraft("");
-                setEmailErr(null);
-                setEmailAsk(true);
-              }}
-              disabled={elements.length === 0 || sending}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40"
-            >
-              {sending ? "Sending…" : "Email my proposal"}
-            </button>
-          )}
         </div>
 
         {customerMode && lookTarget && (
@@ -1658,7 +1641,8 @@ export default function DesignStep({
                 design it together live on a quick call.
               </span>
             </div>
-            <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
+            <div className="mt-2 flex overflow-x-auto pb-1">
+            <div className="mx-auto flex gap-3">
               {SIGN_LOOKS.map((look) => {
                 const active = lookIsActive(lookTarget, look);
                 return (
@@ -1720,6 +1704,7 @@ export default function DesignStep({
                   </button>
                 );
               })}
+            </div>
             </div>
           </div>
         )}
@@ -1954,7 +1939,38 @@ export default function DesignStep({
 
       {customerMode ? (
         <>
-        <div className="w-full shrink-0 lg:order-3 lg:w-80">{sidebar}</div>
+        <div className="w-full shrink-0 lg:order-3 lg:w-80">
+          {sidebar}
+          <button
+            onClick={() => {
+              if (customerEmail) {
+                void sendProposalTo(customerEmail);
+                return;
+              }
+              setEmailDraft("");
+              setEmailErr(null);
+              setEmailAsk(true);
+            }}
+            disabled={elements.length === 0 || sending}
+            className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-blue-600 py-4 text-lg font-bold text-white shadow-[0_2px_8px_rgba(37,99,235,0.4),0_16px_32px_-12px_rgba(37,99,235,0.55)] transition-all hover:bg-blue-500 hover:shadow-[0_2px_8px_rgba(37,99,235,0.45),0_20px_40px_-12px_rgba(37,99,235,0.65)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40 disabled:shadow-none"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+            >
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="m3 7 9 6 9-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {sending ? "Sending…" : "Email my proposal"}
+          </button>
+          <p className="mt-2 text-center text-xs text-zinc-500">
+            Day &amp; night mockup + budget range, in your inbox
+          </p>
+        </div>
         <div className="w-full shrink-0 lg:order-1 lg:w-72">
           <div className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-12px_rgba(24,24,27,0.15)]">
             <h3 className="text-base font-extrabold tracking-tight text-zinc-900">
