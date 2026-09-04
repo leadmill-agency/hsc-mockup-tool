@@ -1140,13 +1140,8 @@ export default function DesignStep({
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      {/* customer columns: customize left, canvas center, price right (lg) */}
-      <div
-        ref={wrapRef}
-        className={`min-w-0 flex-1 ${customerMode ? "lg:order-2" : ""}`}
-      >
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               undo();
@@ -1645,7 +1640,7 @@ export default function DesignStep({
         </div>
 
         {customerMode && lookTarget && (
-          <div className="mb-4">
+          <div>
             <div className="flex items-baseline justify-between">
               <span className="text-base font-bold tracking-tight text-zinc-900">
                 Pick a look
@@ -1722,6 +1717,13 @@ export default function DesignStep({
             </p>
           </div>
         )}
+
+      <div className="flex flex-col gap-6 lg:flex-row">
+        {/* customer columns: customize left, canvas center, price right (lg) */}
+        <div
+          ref={wrapRef}
+          className={`min-w-0 flex-1 ${customerMode ? "lg:order-2" : ""}`}
+        >
 
         <div className={customerMode ? "flex justify-center" : ""}>
         <div className="relative inline-block">
@@ -2216,6 +2218,7 @@ export default function DesignStep({
       ) : (
         sidebar
       )}
+      </div>
 
       {emailAsk && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 px-4 backdrop-blur-sm">
