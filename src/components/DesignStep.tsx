@@ -55,6 +55,9 @@ interface Props {
   canRedo: boolean;
   projectName: string;
   pricingCfg: PricingConfig;
+  customerMode?: boolean;
+  customerEmail?: string;
+  onProposalSent?: (to: string) => void;
   onBack: () => void;
   sidebar: ReactNode;
 }
@@ -341,6 +344,9 @@ export default function DesignStep({
   canRedo,
   projectName,
   pricingCfg,
+  customerMode,
+  customerEmail,
+  onProposalSent,
   onBack,
   sidebar,
 }: Props) {
@@ -696,14 +702,18 @@ export default function DesignStep({
     a.click();
   };
 
-  const makeProposal = async (toEmail?: string) => {
-    // open synchronously so the popup isn't blocked, fill in async
-    const win = window.open("about:blank", "_blank");
-    if (!win) {
-      alert("Allow pop-ups for this site to open the proposal.");
-      return;
+  const makeProposal = async (toEmail?: string, silent = false) => {
+    // staff flow opens the proposal page; customer flow sends silently
+    let win: Window | null = null;
+    if (!silent) {
+      // open synchronously so the popup isn't blocked, fill in async
+      win = window.open("about:blank", "_blank");
+      if (!win) {
+        alert("Allow pop-ups for this site to open the proposal.");
+        return;
+      }
+      win.document.write("<title>Preparing proposal…</title>");
     }
-    win.document.write("<title>Preparing proposal…</title>");
     const token = crypto.randomUUID();
     const wasNight = night;
     setNight(false);
@@ -869,7 +879,17 @@ export default function DesignStep({
         emailed: boolean;
         hookConfigured: boolean;
       };
-      win.location.href = out.url;
+      if (win) win.location.href = out.url;
+      if (silent && toEmail) {
+        if (out.emailed) {
+          onProposalSent?.(toEmail);
+        } else {
+          alert(
+            "We couldn't email your proposal just now — your sign specialist will send it to you shortly."
+          );
+        }
+        return;
+      }
       if (toEmail) {
         alert(
           out.emailed
@@ -880,8 +900,12 @@ export default function DesignStep({
         );
       }
     } catch (e) {
-      win.close();
-      alert(`Could not create the proposal: ${e instanceof Error ? e.message : e}`);
+      win?.close();
+      if (silent) {
+        alert("Something went wrong creating your proposal — please try again.");
+      } else {
+        alert(`Could not create the proposal: ${e instanceof Error ? e.message : e}`);
+      }
     }
   };
 
@@ -1248,6 +1272,7 @@ export default function DesignStep({
                   className="w-20 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
                 />
               </label>
+              {!customerMode && (
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 <input
                   type="checkbox"
@@ -1263,6 +1288,7 @@ export default function DesignStep({
                 />
                 Built as channel letters
               </label>
+              )}
               {selected.priceAsLetters && (
                 <>
                   <label className="flex items-center gap-1 text-sm text-zinc-300">
@@ -1334,27 +1360,46 @@ export default function DesignStep({
               ☾ Night
             </button>
           </div>
-          <button
-            onClick={exportPng}
-            className="rounded-lg border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
-          >
-            Export PNG
-          </button>
-          <button
-            onClick={() => void makeProposal()}
-            disabled={elements.length === 0}
-            className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
-          >
-            Proposal
-          </button>
-          <button
-            onClick={emailProposal}
-            disabled={elements.length === 0}
-            title="Create the proposal and email it to the customer via Zapier"
-            className="rounded-lg border border-amber-400/60 px-3 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-400/10 disabled:opacity-40"
-          >
-            ✉ Email
-          </button>
+          {!customerMode && (
+            <>
+              <button
+                onClick={exportPng}
+                className="rounded-lg border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+              >
+                Export PNG
+              </button>
+              <button
+                onClick={() => void makeProposal()}
+                disabled={elements.length === 0}
+                className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
+              >
+                Proposal
+              </button>
+              <button
+                onClick={emailProposal}
+                disabled={elements.length === 0}
+                title="Create the proposal and email it to the customer via Zapier"
+                className="rounded-lg border border-amber-400/60 px-3 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-400/10 disabled:opacity-40"
+              >
+                ✉ Email
+              </button>
+            </>
+          )}
+          {customerMode && (
+            <button
+              onClick={() =>
+                customerEmail
+                  ? void makeProposal(customerEmail, true)
+                  : alert(
+                      "We don't have your email on file — call or text (832) 974-2546 and we'll send your proposal."
+                    )
+              }
+              disabled={elements.length === 0}
+              className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
+            >
+              ✉ Email my proposal
+            </button>
+          )}
         </div>
 
         <div className="relative inline-block">

@@ -20,6 +20,9 @@ interface Props {
   ipp: number;
   cfg: PricingConfig;
   setCfg: (updater: (c: PricingConfig) => PricingConfig) => void;
+  /** Customer mode: show only sizes and the investment range — no internal
+   *  cost breakdown, add-on counts, or pricing settings. */
+  customer?: boolean;
 }
 
 function letterCount(text: string): number {
@@ -57,7 +60,7 @@ export function elementsToPieces(elements: SignElement[], ipp: number): PieceGro
   );
 }
 
-export default function PricePanel({ elements, ipp, cfg, setCfg }: Props) {
+export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Props) {
   const pieces = elementsToPieces(elements, ipp);
   const wireways = racewayCount(elements);
   const backers = backerCount(elements);
@@ -127,7 +130,8 @@ export default function PricePanel({ elements, ipp, cfg, setCfg }: Props) {
         </p>
       </div>
 
-      {/* everything below is internal and stays collapsed by default */}
+      {/* internal-only: truly absent in customer mode, collapsed for staff */}
+      {!customer && (
       <details className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 opacity-70 transition-opacity open:opacity-100 hover:opacity-100">
         <summary className="cursor-pointer text-xs font-medium text-zinc-500">
           Internal · staff only
@@ -175,6 +179,7 @@ export default function PricePanel({ elements, ipp, cfg, setCfg }: Props) {
           </div>
         </div>
       </details>
+      )}
     </div>
   );
 }

@@ -6,6 +6,12 @@ import { SquareParams } from "@/lib/warp";
 import { Measurement, SignElement } from "@/lib/types";
 import { ProjectSummary } from "@/lib/store";
 
+export interface CustomerInfo {
+  email: string;
+  name: string;
+  startTime: string | null;
+}
+
 export interface CloudState {
   squareParams: SquareParams;
   measurement: Measurement | null;
@@ -14,6 +20,7 @@ export interface CloudState {
   step: string;
   originalUrl?: string;
   correctedUrl?: string;
+  customer?: CustomerInfo;
 }
 
 export interface CloudRecord {
@@ -36,6 +43,7 @@ export interface SavePayload {
   elements: SignElement[];
   backerPlates: number;
   step: string;
+  customer?: CustomerInfo;
 }
 
 const isRemote = (src?: string): boolean =>
@@ -108,6 +116,7 @@ export async function saveProjectCloud(p: SavePayload): Promise<void> {
     step: p.step,
     originalUrl,
     correctedUrl,
+    customer: p.customer,
   };
   const res = await fetch(`/api/projects/${p.id}`, {
     method: "PUT",

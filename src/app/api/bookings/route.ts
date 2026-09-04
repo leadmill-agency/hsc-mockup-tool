@@ -77,7 +77,7 @@ export async function POST(req: Request): Promise<Response> {
   const origin = new URL(req.url).origin;
   return Response.json({
     project_id: id,
-    project_url: `${origin}/?open=${id}`,
+    project_url: `${origin}/c/${id}`,
     customer_email: email,
     consult_time: when,
   });

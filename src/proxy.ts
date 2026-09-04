@@ -18,6 +18,8 @@ function isPublic(pathname: string): boolean {
   return (
     pathname === "/login" ||
     pathname.startsWith("/p/") ||
+    pathname.startsWith("/c/") || // customer links (unguessable project ids)
+
     pathname.includes(".") // static assets (/_next/*.js, /favicon.ico, …)
   );
 }
