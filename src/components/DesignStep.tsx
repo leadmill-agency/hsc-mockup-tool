@@ -401,17 +401,22 @@ export default function DesignStep({
     if (!el) return;
     const update = () => {
       setColW(Math.min(MAX_W, el.clientWidth || MAX_W));
+      // One-view rule: the stage fills exactly the viewport space below the
+      // preset row (64px reserved for the bar under the canvas).
       setMaxH(
         customerMode
-          ? Math.min(700, Math.max(420, window.innerHeight - 340))
+          ? Math.max(360, window.innerHeight - el.getBoundingClientRect().top - 64)
           : MAX_H
       );
     };
     update();
+    // fonts/cards settle after first paint and shift the column top
+    const settle = setTimeout(update, 450);
     const ro = new ResizeObserver(update);
     ro.observe(el);
     window.addEventListener("resize", update);
     return () => {
+      clearTimeout(settle);
       ro.disconnect();
       window.removeEventListener("resize", update);
     };
@@ -1641,29 +1646,34 @@ export default function DesignStep({
 
         {customerMode && lookTarget && (
           <div>
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-4">
               <span className="text-base font-bold tracking-tight text-zinc-900">
                 Pick a look
                 <span className="ml-2 text-sm font-normal text-zinc-500">
                   tap to try it on your building
                 </span>
               </span>
+              <span className="hidden truncate text-sm text-zinc-500 md:block">
+                Nothing is final — play around. Prefer we handle it? We&apos;ll
+                design it together live on a quick call.
+              </span>
             </div>
-            <div className="mt-2.5 flex gap-3 overflow-x-auto pb-2">
+            <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
               {SIGN_LOOKS.map((look) => {
                 const active = lookIsActive(lookTarget, look);
                 return (
                   <button
                     key={look.id}
                     onClick={() => applyLook(look)}
-                    className={`w-48 shrink-0 rounded-2xl bg-white p-2.5 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                    title={look.blurb}
+                    className={`w-44 shrink-0 rounded-xl bg-white p-2 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
                       active
                         ? "shadow-[0_2px_6px_rgba(37,99,235,0.15),0_12px_28px_-12px_rgba(37,99,235,0.35)] ring-2 ring-blue-600"
                         : "shadow-[0_1px_2px_rgba(24,24,27,0.05),0_8px_20px_-12px_rgba(24,24,27,0.2)] ring-1 ring-zinc-200 hover:ring-zinc-300"
                     }`}
                   >
                     <div
-                      className="flex h-20 items-center justify-center overflow-hidden rounded-xl"
+                      className="flex h-12 items-center justify-center overflow-hidden rounded-lg"
                       style={{
                         background:
                           "linear-gradient(180deg, #101014 0%, #23232a 100%)",
@@ -1689,7 +1699,7 @@ export default function DesignStep({
                         {lookTarget.text || "Your Sign"}
                       </span>
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5 px-0.5 text-sm font-semibold text-zinc-900">
+                    <div className="mt-1.5 flex items-center gap-1.5 px-0.5 text-sm font-semibold text-zinc-900">
                       {look.name}
                       {active && (
                         <svg
@@ -1704,17 +1714,13 @@ export default function DesignStep({
                         </svg>
                       )}
                     </div>
-                    <div className="px-0.5 text-xs leading-snug text-zinc-500">
+                    <div className="truncate px-0.5 text-[11px] leading-4 text-zinc-500">
                       {look.blurb}
                     </div>
                   </button>
                 );
               })}
             </div>
-            <p className="mt-1 text-sm text-zinc-500">
-              Nothing is final — play around. Prefer we handle it? We&apos;ll
-              design it together live on a quick call.
-            </p>
           </div>
         )}
 
@@ -1950,7 +1956,7 @@ export default function DesignStep({
         <>
         <div className="w-full shrink-0 lg:order-3 lg:w-80">{sidebar}</div>
         <div className="w-full shrink-0 lg:order-1 lg:w-72">
-          <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-12px_rgba(24,24,27,0.15)]">
+          <div className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-12px_rgba(24,24,27,0.15)]">
             <h3 className="text-base font-extrabold tracking-tight text-zinc-900">
               Make it yours
             </h3>
@@ -1966,7 +1972,7 @@ export default function DesignStep({
                   Drag its corners on the photo to resize it.
                 </p>
                 <label className="block">
-                  <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                  <div className="mb-1 text-sm font-medium text-zinc-700">
                     Panel color
                   </div>
                   <input
@@ -1980,10 +1986,10 @@ export default function DesignStep({
                 </label>
               </div>
             ) : (
-              <div className="mt-4 space-y-4">
+              <div className="mt-3 space-y-3">
                 {selected.kind === "text" && (
                   <div>
-                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                    <div className="mb-1 text-sm font-medium text-zinc-700">
                       Lettering
                     </div>
                     <FontPicker
@@ -2006,7 +2012,7 @@ export default function DesignStep({
                 {selected.kind === "text" && (
                   <div className="flex gap-6">
                     <label className="block">
-                      <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                      <div className="mb-1 text-sm font-medium text-zinc-700">
                         Letter color
                       </div>
                       <input
@@ -2020,7 +2026,7 @@ export default function DesignStep({
                     </label>
                     {selected.signStyle === "cabinet" ? (
                       <label className="block">
-                        <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                        <div className="mb-1 text-sm font-medium text-zinc-700">
                           Box color
                         </div>
                         <input
@@ -2034,7 +2040,7 @@ export default function DesignStep({
                       </label>
                     ) : (
                       <label className="block">
-                        <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                        <div className="mb-1 text-sm font-medium text-zinc-700">
                           Edge color
                         </div>
                         <input
@@ -2051,47 +2057,45 @@ export default function DesignStep({
                   </div>
                 )}
                 <div>
-                  <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                  <div className="mb-1 text-sm font-medium text-zinc-700">
                     How it lights at night
                   </div>
-                  <select
-                    value={selected.lighting ?? "front"}
-                    onChange={(e) =>
-                      commit(selected.id, {
-                        lighting: e.target.value as Lighting,
-                      })
-                    }
-                    className={`w-full ${tb.select}`}
-                  >
-                    <option value="front">Lights up front</option>
-                    <option value="halo">Glows from behind</option>
-                    <option value="none">Not lit</option>
-                  </select>
-                </div>
-                {(selected.lighting ?? "front") !== "none" && (
-                  <label className="block">
-                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
-                      Glow color
-                    </div>
-                    <input
-                      type="color"
-                      value={
-                        selected.ledColor ??
-                        (selected.kind === "text" &&
-                        (selected.lighting ?? "front") === "front"
-                          ? selected.fill
-                          : "#fff3d6")
-                      }
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selected.lighting ?? "front"}
                       onChange={(e) =>
-                        commit(selected.id, { ledColor: e.target.value })
+                        commit(selected.id, {
+                          lighting: e.target.value as Lighting,
+                        })
                       }
-                      className={tb.color}
-                    />
-                  </label>
-                )}
+                      className={`min-w-0 flex-1 ${tb.select}`}
+                    >
+                      <option value="front">Lights up front</option>
+                      <option value="halo">Glows from behind</option>
+                      <option value="none">Not lit</option>
+                    </select>
+                    {(selected.lighting ?? "front") !== "none" && (
+                      <input
+                        type="color"
+                        title="Glow color"
+                        value={
+                          selected.ledColor ??
+                          (selected.kind === "text" &&
+                          (selected.lighting ?? "front") === "front"
+                            ? selected.fill
+                            : "#fff3d6")
+                        }
+                        onChange={(e) =>
+                          commit(selected.id, { ledColor: e.target.value })
+                        }
+                        className={tb.color}
+                      />
+                    )}
+                  </div>
+                </div>
                 {selected.kind === "text" && (
                   <div>
-                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                    <div className="mb-1 text-sm font-medium text-zinc-700">
                       Sign type
                     </div>
                     <select
@@ -2123,7 +2127,7 @@ export default function DesignStep({
                 )}
                 {selected.kind === "text" && (
                   <label className="block">
-                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                    <div className="mb-1 text-sm font-medium text-zinc-700">
                       Letter height
                     </div>
                     <div className="flex items-center gap-2">
@@ -2153,7 +2157,7 @@ export default function DesignStep({
                 )}
                 {selected.kind === "logo" && (
                   <label className="block">
-                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                    <div className="mb-1 text-sm font-medium text-zinc-700">
                       Logo height
                     </div>
                     <div className="flex items-center gap-2">
@@ -2207,7 +2211,7 @@ export default function DesignStep({
                   );
                   setSelectedId(null);
                 }}
-                className={`mt-5 w-full ${tb.del}`}
+                className={`mt-3 w-full ${tb.del}`}
               >
                 Remove from photo
               </button>
