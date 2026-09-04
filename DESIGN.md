@@ -108,7 +108,7 @@ The direction contract (src/app/layout.tsx), quoted verbatim:
 
 The customer surface reads as a real sign shop's showroom with the lights on: warm-white walls, ink lettering, one confident blue, and — at the center — a single dark framed stage where the customer's own building hangs like the exhibit. Everything around the stage is bright, quiet, and card-based; the only dark surface on the page is the photo canvas itself, so day scenes read naturally and lit signs pop at night. The voice is a working tradesperson's: friendly imperatives ("Drop your photo here", "Looks good — continue"), no jargon, and reassurance at every irreversible-feeling moment ("Nothing here is final — play around").
 
-The build refuses the dark-panel configurator default. Chrome never competes with the mockup: controls are white cards and quiet outlined buttons; the blue is reserved for the one thing to do next (the CTA, the active step, the selected look, the price). Sign-industry controls exist but hide behind a "Fine-tune" reveal; the default path is reacting to finished looks, not composing from parts.
+The build refuses the dark-panel configurator default. Chrome never competes with the mockup: controls are white cards and quiet outlined buttons; the blue is reserved for the one thing to do next (the CTA, the active step, the selected look, the price). Sign-industry controls live in the selection-driven "Make it yours" card in the right rail (plain-language labels: "How it lights at night", "Sign type"); the default path is reacting to finished looks, not composing from parts. When nothing is selected the card teaches the interaction ("Tap your sign on the photo…").
 
 **Key Characteristics:**
 - Warm-white ground, ink text, exactly one brand hue (blue #2563eb)
@@ -122,7 +122,7 @@ The build refuses the dark-panel configurator default. Chrome never competes wit
 Ink and paper plus one working blue; every other value is a zinc neutral or lives inside the photo stage.
 
 ### Primary
-- **Showroom Blue** (`#2563eb`, Tailwind blue-600): the single brand accent. Primary CTAs, active step label, active look-card ring, selected day/night segment, price callout background, dimension badges and the Konva transformer on the customer canvas, focus-visible outlines, link-style text buttons ("Fine-tune"). Hover state lightens to **Working Blue** (`#3b82f6`, blue-500). Tints: **Blue Well** (`#eff6ff`, blue-50) for circular icon wells and selected dropdown rows; **Blue Selection** (`#bfdbfe`, blue-200) for `::selection`; focus ring is `#2563eb` at 20% opacity.
+- **Showroom Blue** (`#2563eb`, Tailwind blue-600): the single brand accent. Primary CTAs, active step label, active look-card ring, selected day/night segment, price callout background, dimension badges and the Konva transformer on the customer canvas, focus-visible outlines, link-style text buttons. Hover state lightens to **Working Blue** (`#3b82f6`, blue-500). Tints: **Blue Well** (`#eff6ff`, blue-50) for circular icon wells and selected dropdown rows; **Blue Selection** (`#bfdbfe`, blue-200) for `::selection`; focus ring is `#2563eb` at 20% opacity.
 
 ### Neutral
 - **Ink** (`#18181b`, zinc-900): headings, primary text, the dark canvas-stage background, the active "Day" segment, Konva marker label text. The ink and the stage are the *same* value — the stage is a slab of ink.
@@ -191,7 +191,7 @@ Rounded, friendly, and tiered by prominence: `rounded-lg` (8px) for dense toolba
 - **Primary:** solid Showroom Blue, white `font-semibold` text, `rounded-xl px-6 py-2.5` (toolbar variant `px-4 py-2`), blue-glow shadow, `hover:bg-blue-500`, `transition-colors`, `disabled:opacity-40/50`. One per view region — it is the next step ("Show me my sign", "Continue to design", "Email my proposal", "Send my proposal").
 - **Secondary:** white with `border-zinc-300`, `font-medium text-zinc-700`, `rounded-xl px-4 py-2.5`; hover darkens border to zinc-400 and text to zinc-900. Toolbar buttons are the same recipe at `rounded-lg px-3 py-2 text-sm`.
 - **Icon buttons:** `rounded-lg border-zinc-300 bg-white p-2 text-zinc-600`, same hover.
-- **Text buttons:** bare `font-medium text-blue-600 hover:text-blue-500` ("Fine-tune"), or underlined zinc for back-links ("← Back to measurement").
+- **Text buttons:** bare `font-medium text-blue-600 hover:text-blue-500`, or underlined zinc for back-links ("← Back to measurement").
 - **Destructive:** identical to secondary but text-zinc-600 with `hover:bg-zinc-100` — see The No-Red Rule.
 - **Focus (all buttons):** `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600`.
 

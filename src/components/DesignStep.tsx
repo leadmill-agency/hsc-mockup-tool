@@ -433,8 +433,6 @@ export default function DesignStep({
   const [showDims, setShowDims] = useState(true);
   const [view, setView] = useState<View>({ z: 1, x: 0, y: 0 });
   const [night, setNight] = useState(false);
-  // Customer mode: jargon controls hide behind this toggle (PRD non-designer UX)
-  const [fineTune, setFineTune] = useState(false);
   // Email-gated proposal: a showroom dialog collects the address (no native
   // prompt at the conversion moment) and carries send errors inline.
   const [emailAsk, setEmailAsk] = useState(false);
@@ -444,7 +442,9 @@ export default function DesignStep({
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
-  const showAdvanced = !customerMode || fineTune;
+  // Toolbar advanced controls are staff-only; customers get the labeled
+  // "Make it yours" card in the right rail instead (selection-driven).
+  const showAdvanced = !customerMode;
 
   // Customer mode: never greet them with a blank canvas — the first time they
   // reach this step, drop a finished sign with their business name, centered
@@ -1544,7 +1544,7 @@ export default function DesignStep({
               )}
             </>
           )}
-          {selected && (
+          {selected && !customerMode && (
             <button
               onClick={() => {
                 beginAction();
@@ -1651,12 +1651,6 @@ export default function DesignStep({
                   tap to try it on your building
                 </span>
               </span>
-              <button
-                onClick={() => setFineTune((f) => !f)}
-                className="rounded text-sm font-medium text-blue-600 transition-colors hover:text-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-              >
-                {fineTune ? "Hide fine-tune" : "Fine-tune"}
-              </button>
             </div>
             <div className="mt-2.5 flex gap-3 overflow-x-auto pb-2">
               {SIGN_LOOKS.map((look) => {
@@ -1948,7 +1942,261 @@ export default function DesignStep({
         </div>
       </div>
 
-      {sidebar}
+      {customerMode ? (
+        <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80">
+          {sidebar}
+          <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-12px_rgba(24,24,27,0.15)]">
+            <h3 className="text-base font-extrabold tracking-tight text-zinc-900">
+              Make it yours
+            </h3>
+            {!selected ? (
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                Tap your sign on the photo and you can change its lettering,
+                colors, lighting, and size right here.
+              </p>
+            ) : selected.kind === "panel" ? (
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                This is a background panel — drag its corners on the photo to
+                resize it, or remove it below.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {selected.kind === "text" && (
+                  <div>
+                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                      Lettering
+                    </div>
+                    <FontPicker
+                      customerMode
+                      value={selected.fontFamily ?? SIGN_FONT}
+                      onPick={async (family, googleName) => {
+                        if (googleName) {
+                          await loadGoogleFont(googleName);
+                          invalidateCapHeight(family);
+                        }
+                        const inches = textLetterHeightInches(selected, ipp);
+                        commit(selected.id, {
+                          fontFamily: family,
+                          fontSize: fontSizeForLetterHeight(inches, ipp, family),
+                        });
+                      }}
+                    />
+                  </div>
+                )}
+                {selected.kind === "text" && (
+                  <div className="flex gap-6">
+                    <label className="block">
+                      <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                        Letter color
+                      </div>
+                      <input
+                        type="color"
+                        value={selected.fill}
+                        onChange={(e) =>
+                          commit(selected.id, { fill: e.target.value })
+                        }
+                        className={tb.color}
+                      />
+                    </label>
+                    {selected.signStyle === "cabinet" ? (
+                      <label className="block">
+                        <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                          Box color
+                        </div>
+                        <input
+                          type="color"
+                          value={selected.backerColor ?? "#f7f5f0"}
+                          onChange={(e) =>
+                            commit(selected.id, { backerColor: e.target.value })
+                          }
+                          className={tb.color}
+                        />
+                      </label>
+                    ) : (
+                      <label className="block">
+                        <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                          Edge color
+                        </div>
+                        <input
+                          type="color"
+                          title="The trim around each letter"
+                          value={selected.trimColor ?? "#26221f"}
+                          onChange={(e) =>
+                            commit(selected.id, { trimColor: e.target.value })
+                          }
+                          className={tb.color}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                    How it lights at night
+                  </div>
+                  <select
+                    value={selected.lighting ?? "front"}
+                    onChange={(e) =>
+                      commit(selected.id, {
+                        lighting: e.target.value as Lighting,
+                      })
+                    }
+                    className={`w-full ${tb.select}`}
+                  >
+                    <option value="front">Lights up front</option>
+                    <option value="halo">Glows from behind</option>
+                    <option value="none">Not lit</option>
+                  </select>
+                </div>
+                {(selected.lighting ?? "front") !== "none" && (
+                  <label className="block">
+                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                      Glow color
+                    </div>
+                    <input
+                      type="color"
+                      value={
+                        selected.ledColor ??
+                        (selected.kind === "text" &&
+                        (selected.lighting ?? "front") === "front"
+                          ? selected.fill
+                          : "#fff3d6")
+                      }
+                      onChange={(e) =>
+                        commit(selected.id, { ledColor: e.target.value })
+                      }
+                      className={tb.color}
+                    />
+                  </label>
+                )}
+                {selected.kind === "text" && (
+                  <div>
+                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                      Sign type
+                    </div>
+                    <select
+                      value={selected.signStyle ?? "letters"}
+                      onChange={(e) => {
+                        const v = e.target.value as "letters" | "cabinet";
+                        commit(
+                          selected.id,
+                          v === "cabinet"
+                            ? {
+                                signStyle: v,
+                                raceway: false,
+                                backer: false,
+                                backerColor: "#f7f5f0",
+                                fill:
+                                  selected.fill === "#f5f5f5"
+                                    ? "#1c1917"
+                                    : selected.fill,
+                              }
+                            : { signStyle: v, backerColor: "#3f3c38" }
+                        );
+                      }}
+                      className={`w-full ${tb.select}`}
+                    >
+                      <option value="letters">Individual lit letters</option>
+                      <option value="cabinet">Lit box sign</option>
+                    </select>
+                  </div>
+                )}
+                {selected.kind === "text" && (
+                  <label className="block">
+                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                      Letter height
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        step={0.5}
+                        value={Number(
+                          textLetterHeightInches(selected, ipp).toFixed(1)
+                        )}
+                        onChange={(e) => {
+                          const inches = Number(e.target.value);
+                          if (inches > 0)
+                            commit(selected.id, {
+                              fontSize: fontSizeForLetterHeight(
+                                inches,
+                                ipp,
+                                selected.fontFamily
+                              ),
+                            });
+                        }}
+                        className={`w-24 ${tb.num}`}
+                      />
+                      <span className="text-sm text-zinc-500">inches tall</span>
+                    </div>
+                  </label>
+                )}
+                {selected.kind === "logo" && (
+                  <label className="block">
+                    <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                      Logo height
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        step={0.5}
+                        value={Number((selected.height * ipp).toFixed(1))}
+                        onChange={(e) => {
+                          const inches = Number(e.target.value);
+                          if (inches > 0) {
+                            const h = inches / ipp;
+                            commit(selected.id, {
+                              height: h,
+                              width: (h * selected.width) / selected.height,
+                            });
+                          }
+                        }}
+                        className={`w-24 ${tb.num}`}
+                      />
+                      <span className="text-sm text-zinc-500">inches tall</span>
+                    </div>
+                  </label>
+                )}
+                {selected.kind === "logo" && selected.processedSrc && (
+                  <label className={tb.label}>
+                    <input
+                      type="checkbox"
+                      checked={!!selected.bgRemoved}
+                      onChange={(e) =>
+                        commit(selected.id, {
+                          bgRemoved: e.target.checked,
+                          src: e.target.checked
+                            ? selected.processedSrc!
+                            : selected.originalSrc ?? selected.src,
+                        })
+                      }
+                      className={tb.check}
+                    />
+                    Clear background
+                  </label>
+                )}
+              </div>
+            )}
+            {selected && (
+              <button
+                onClick={() => {
+                  beginAction();
+                  setElements((els) =>
+                    els.filter((el) => el.id !== selected.id)
+                  );
+                  setSelectedId(null);
+                }}
+                className={`mt-5 w-full ${tb.del}`}
+              >
+                Remove from photo
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        sidebar
+      )}
 
       {emailAsk && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 px-4 backdrop-blur-sm">
