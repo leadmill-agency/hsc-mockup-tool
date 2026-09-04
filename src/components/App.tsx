@@ -49,12 +49,19 @@ const STEPS: { key: Step; label: string; customerLabel: string }[] = [
 
 export default function App({
   customerProjectId,
+  publicMode,
 }: {
   customerProjectId?: string;
+  /** Root-URL visitors: customer experience with a fresh project created on
+   *  the spot; proposal is email-gated; completion points at booking a call. */
+  publicMode?: boolean;
 }) {
   const customerMode = !!customerProjectId;
+  // customer-style UX (welcome screen, looks, blue chrome, no internals) —
+  // booked customers AND anonymous public visitors
+  const customerUX = customerMode || !!publicMode;
   const [screen, setScreen] = useState<"home" | "work">(
-    customerMode ? "work" : "home"
+    customerUX ? "work" : "home"
   );
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [welcomeDone, setWelcomeDone] = useState(false);
@@ -131,7 +138,7 @@ export default function App({
   }, []);
 
   useEffect(() => {
-    if (!customerMode) refreshProjects();
+    if (!customerUX) refreshProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshProjects]);
 
@@ -144,13 +151,19 @@ export default function App({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerMode]);
 
-  // Emailed personal links land here as /?open=<projectId>
+  // Legacy emailed links land as /?open=<projectId>. On the public root that
+  // is a customer's project — send them to their personal /c/ link; on /staff
+  // open it in place.
   const openedFromLink = useRef(false);
   useEffect(() => {
     if (openedFromLink.current) return;
     openedFromLink.current = true;
     const id = new URLSearchParams(window.location.search).get("open");
     if (id && /^[a-zA-Z0-9-]{8,64}$/.test(id)) {
+      if (publicMode) {
+        window.location.replace(`/c/${id}`);
+        return;
+      }
       window.history.replaceState(null, "", window.location.pathname);
       void openProject(id);
     }
@@ -365,8 +378,19 @@ export default function App({
       })
     : null;
 
+  // public visitors get a fresh project the moment they start designing
+  const startDesign = () => {
+    if (publicMode && !projectId) {
+      setProjectId(crypto.randomUUID());
+      setProjectName(
+        businessName.trim() ? `${businessName.trim()} · website` : "Website visitor"
+      );
+    }
+    setWelcomeDone(true);
+  };
+
   // customer welcome screen (PRD §8.4) before the first photo
-  if (customerMode && !welcomeDone && !original && !loadingProject) {
+  if (customerUX && !welcomeDone && !original && !loadingProject) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-100">
         <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-8">
@@ -374,7 +398,9 @@ export default function App({
             <span className="text-blue-400">Houston</span> Sign Crafters
           </div>
           <h1 className="mt-4 text-2xl font-bold">
-            See your new sign on your building — before our call
+            {publicMode
+              ? "See your new sign on your building — in 5 minutes"
+              : "See your new sign on your building — before our call"}
           </h1>
           {consultTime && (
             <p className="mt-2 text-sm text-blue-300">
@@ -382,10 +408,9 @@ export default function App({
             </p>
           )}
           <p className="mt-4 text-sm leading-6 text-zinc-300">
-            This takes about 5 minutes. Snap a photo of your storefront and
-            we&apos;ll put a finished sign right on it — day and night — with a
-            realistic budget range. We&apos;ll fine-tune it together on the
-            call.
+            {publicMode
+              ? "Snap a photo of your storefront and we'll put a finished sign right on it — day and night — with a realistic budget range. Free, no signup needed."
+              : "This takes about 5 minutes. Snap a photo of your storefront and we'll put a finished sign right on it — day and night — with a realistic budget range. We'll fine-tune it together on the call."}
           </p>
           <label className="mt-5 block">
             <span className="text-sm font-medium text-zinc-100">
@@ -394,7 +419,7 @@ export default function App({
             <input
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && setWelcomeDone(true)}
+              onKeyDown={(e) => e.key === "Enter" && startDesign()}
               placeholder="e.g. Peach Cobbler Co"
               className="mt-2 w-full rounded-lg border border-zinc-600 bg-zinc-950 px-4 py-3 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-400 focus:outline-none"
             />
@@ -403,7 +428,7 @@ export default function App({
             </span>
           </label>
           <button
-            onClick={() => setWelcomeDone(true)}
+            onClick={startDesign}
             className="mt-5 w-full rounded-lg bg-blue-500 py-3 font-semibold text-white hover:bg-blue-400"
           >
             Start my design
@@ -503,7 +528,7 @@ export default function App({
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4">
-          {!customerMode && (
+          {!customerUX && (
             <button
               onClick={() => {
                 setScreen("home");
@@ -516,12 +541,12 @@ export default function App({
             </button>
           )}
           <h1 className="text-lg font-bold tracking-tight">
-            <span className={customerMode ? "text-blue-400" : "text-amber-400"}>
-              {customerMode ? "Houston" : "HSC"}
+            <span className={customerUX ? "text-blue-400" : "text-amber-400"}>
+              {customerUX ? "Houston" : "HSC"}
             </span>
-            {customerMode ? " Sign Crafters" : ""}
+            {customerUX ? " Sign Crafters" : ""}
           </h1>
-          {customerMode ? (
+          {customerUX ? (
             consultTime && (
               <span className="text-xs text-zinc-400">
                 Consult: {consultTime}
@@ -543,7 +568,7 @@ export default function App({
                 disabled={!reached(s.key)}
                 className={`rounded-full px-3 py-1 transition-colors ${
                   step === s.key
-                    ? customerMode
+                    ? customerUX
                       ? "bg-blue-500 font-semibold text-white"
                       : "bg-amber-400 font-semibold text-zinc-950"
                     : reached(s.key)
@@ -551,7 +576,7 @@ export default function App({
                       : "text-zinc-600"
                 }`}
               >
-                {customerMode ? s.customerLabel : s.label}
+                {customerUX ? s.customerLabel : s.label}
               </button>
             ))}
           </nav>
@@ -577,7 +602,7 @@ export default function App({
           <SquareUpStep
             image={original}
             initialParams={squareParams}
-            customerMode={customerMode}
+            customerMode={customerUX}
             onApply={(img, params) => {
               setSquareParams(params);
               setCorrected(img);
@@ -599,7 +624,7 @@ export default function App({
             onChange={setMeasurement}
             onBack={() => setStep("square")}
             onNext={() => setStep("design")}
-            customerMode={customerMode}
+            customerMode={customerUX}
           />
         )}
 
@@ -616,8 +641,15 @@ export default function App({
             canRedo={futureRef.current.length > 0}
             projectName={projectName}
             pricingCfg={pricingCfg}
-            customerMode={customerMode}
+            customerMode={customerUX}
             customerEmail={customer?.email}
+            onCustomerEmail={(email) =>
+              setCustomer((c) => ({
+                email,
+                name: c?.name || businessName.trim(),
+                startTime: c?.startTime ?? null,
+              }))
+            }
             businessName={businessName}
             signAnchorY={(() => {
               const w = measurement?.references.find((r) => r.kind === "width");
@@ -631,7 +663,7 @@ export default function App({
                 ipp={ipp}
                 cfg={pricingCfg}
                 setCfg={(updater) => setPricingCfg((c) => updater(c))}
-                customer={customerMode}
+                customer={customerUX}
               />
             }
           />
@@ -648,18 +680,33 @@ export default function App({
             <p className="mt-2 text-sm text-zinc-300">
               Check <b>{sentTo}</b> for your mockup and budget estimate.
             </p>
-            {consultTime && (
+            {consultTime ? (
               <p className="mt-2 text-sm text-blue-300">
                 We&apos;ll review it together on {consultTime}.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-300">
+                Want exact pricing, permits, and a timeline? Grab a free
+                15-minute call — we&apos;ll pull up your design together.
               </p>
             )}
             <p className="mt-3 text-xs text-zinc-500">
               Didn&apos;t get it? Check spam, or close this and press
               &ldquo;Email my proposal&rdquo; again.
             </p>
+            {!consultTime && (
+              <a
+                href="https://houstonsigncrafters.com/book"
+                className="mt-5 block w-full rounded-lg bg-blue-500 py-3 font-semibold text-white hover:bg-blue-400"
+              >
+                Book my free call
+              </a>
+            )}
             <button
               onClick={() => setSentTo(null)}
-              className="mt-5 rounded-lg border border-zinc-600 px-5 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+              className={`rounded-lg border border-zinc-600 px-5 py-2 text-sm text-zinc-200 hover:bg-zinc-800 ${
+                consultTime ? "mt-5" : "mt-3"
+              }`}
             >
               Back to my design
             </button>

@@ -58,6 +58,9 @@ interface Props {
   pricingCfg: PricingConfig;
   customerMode?: boolean;
   customerEmail?: string;
+  /** Public visitors have no email on file — the proposal button asks for one
+   *  and reports it here so it sticks to the project (email-gated proposal). */
+  onCustomerEmail?: (email: string) => void;
   /** Customer mode: auto-place a finished sign with this name on first visit. */
   businessName?: string;
   /** Y (image px) of the storefront width line — the auto-placed sign sits
@@ -352,6 +355,7 @@ export default function DesignStep({
   pricingCfg,
   customerMode,
   customerEmail,
+  onCustomerEmail,
   businessName,
   signAnchorY,
   onProposalSent,
@@ -1458,13 +1462,24 @@ export default function DesignStep({
           )}
           {customerMode && (
             <button
-              onClick={() =>
-                customerEmail
-                  ? void makeProposal(customerEmail, true)
-                  : alert(
-                      "We don't have your email on file — call or text (832) 974-2546 and we'll send your proposal."
-                    )
-              }
+              onClick={() => {
+                if (customerEmail) {
+                  void makeProposal(customerEmail, true);
+                  return;
+                }
+                const to = window
+                  .prompt(
+                    "Where should we email your mockup and budget range?"
+                  )
+                  ?.trim();
+                if (!to) return;
+                if (!/.+@.+\..+/.test(to)) {
+                  alert("That doesn't look like an email address — try again.");
+                  return;
+                }
+                onCustomerEmail?.(to);
+                void makeProposal(to, true);
+              }}
               disabled={elements.length === 0}
               className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-40"
             >
@@ -1525,7 +1540,7 @@ export default function DesignStep({
             </div>
             <p className="mt-1 text-xs text-zinc-500">
               Nothing is final — play around. Prefer we handle it? We&apos;ll
-              design it together live on your call.
+              design it together live on a quick call.
             </p>
           </div>
         )}

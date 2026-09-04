@@ -16,12 +16,16 @@ function isPublic(pathname: string): boolean {
     );
   }
   return (
+    pathname === "/" || // public design tool (the staff cockpit is /staff)
     pathname === "/login" ||
     pathname.startsWith("/p/") ||
     pathname.startsWith("/c/") || // customer links (unguessable project ids)
 
     pathname.includes(".") // static assets (/_next/*.js, /favicon.ico, …)
   );
+  // NOTE: this dormant gate predates the public entrance — if STAFF_PASSCODE
+  // is ever re-enabled, the project APIs the public tool writes through
+  // (/api/projects, /api/assets, /api/proposals) need public-vs-staff rework.
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
