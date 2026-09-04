@@ -1141,7 +1141,11 @@ export default function DesignStep({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <div ref={wrapRef} className="min-w-0 flex-1">
+      {/* customer columns: customize left, canvas center, price right (lg) */}
+      <div
+        ref={wrapRef}
+        className={`min-w-0 flex-1 ${customerMode ? "lg:order-2" : ""}`}
+      >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
@@ -1184,15 +1188,13 @@ export default function DesignStep({
           >
             Upload logo
           </button>
-          {showAdvanced && (
-            <button
-              onClick={addPanel}
-              title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
-              className={tb.btn}
-            >
-              Add panel
-            </button>
-          )}
+          <button
+            onClick={addPanel}
+            title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
+            className={tb.btn}
+          >
+            {customerMode ? "Add backer panel" : "Add panel"}
+          </button>
           <input
             ref={logoInputRef}
             type="file"
@@ -1943,8 +1945,9 @@ export default function DesignStep({
       </div>
 
       {customerMode ? (
-        <div className="flex w-full shrink-0 flex-col gap-4 lg:w-80">
-          {sidebar}
+        <>
+        <div className="w-full shrink-0 lg:order-3 lg:w-80">{sidebar}</div>
+        <div className="w-full shrink-0 lg:order-1 lg:w-72">
           <div className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-12px_rgba(24,24,27,0.15)]">
             <h3 className="text-base font-extrabold tracking-tight text-zinc-900">
               Make it yours
@@ -1955,10 +1958,25 @@ export default function DesignStep({
                 colors, lighting, and size right here.
               </p>
             ) : selected.kind === "panel" ? (
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
-                This is a background panel — drag its corners on the photo to
-                resize it, or remove it below.
-              </p>
+              <div className="mt-2 space-y-4">
+                <p className="text-sm leading-6 text-zinc-600">
+                  This is a backer panel — a painted plate behind your letters.
+                  Drag its corners on the photo to resize it.
+                </p>
+                <label className="block">
+                  <div className="mb-1.5 text-sm font-medium text-zinc-700">
+                    Panel color
+                  </div>
+                  <input
+                    type="color"
+                    value={selected.fill}
+                    onChange={(e) =>
+                      commit(selected.id, { fill: e.target.value })
+                    }
+                    className={tb.color}
+                  />
+                </label>
+              </div>
             ) : (
               <div className="mt-4 space-y-4">
                 {selected.kind === "text" && (
@@ -2194,6 +2212,7 @@ export default function DesignStep({
             )}
           </div>
         </div>
+        </>
       ) : (
         sidebar
       )}
