@@ -3,6 +3,7 @@
 // configured and a customer email given, fires the webhook so the user's own
 // Zap sends the email (PRD §8.14).
 import { ensureSchema, sql } from "@/lib/db";
+import { publicOrigin } from "@/lib/origin";
 
 const TOKEN_RE = /^[a-zA-Z0-9-]{16,64}$/;
 
@@ -39,7 +40,7 @@ export async function POST(req: Request): Promise<Response> {
       to_email = EXCLUDED.to_email,
       html = EXCLUDED.html`;
 
-  const origin = new URL(req.url).origin;
+  const origin = publicOrigin(req);
   const url = `${origin}/p/${token}`;
 
   let emailed = false;

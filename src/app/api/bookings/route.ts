@@ -2,6 +2,7 @@
 // creates a fresh project for the customer and returns their personal link,
 // which the Zap's next step emails to them (Flow 1, PRD §7.0).
 import { ensureSchema, sql } from "@/lib/db";
+import { publicOrigin } from "@/lib/origin";
 
 interface RawAttendee {
   email?: string;
@@ -74,7 +75,7 @@ export async function POST(req: Request): Promise<Response> {
     INSERT INTO projects (id, name, updated_at, state)
     VALUES (${id}, ${label}, ${Date.now()}, ${JSON.stringify(state)}::jsonb)`;
 
-  const origin = new URL(req.url).origin;
+  const origin = publicOrigin(req);
   return Response.json({
     project_id: id,
     project_url: `${origin}/c/${id}`,
