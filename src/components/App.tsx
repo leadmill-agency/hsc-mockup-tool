@@ -35,6 +35,27 @@ import {
 
 type ListedProject = ProjectSummary & { local?: boolean };
 
+/** Customer-surface brand lockup: a lit sign-panel mark plus the wordmark. */
+function Wordmark({ small }: { small?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <span
+        aria-hidden
+        className={`inline-block rounded-[5px] bg-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.45)] ${
+          small ? "h-4 w-4" : "h-5 w-5"
+        }`}
+      />
+      <span
+        className={`font-bold tracking-tight text-zinc-900 ${
+          small ? "text-base" : "text-lg"
+        }`}
+      >
+        Houston Sign Crafters
+      </span>
+    </span>
+  );
+}
+
 const MeasureStep = dynamic(() => import("@/components/MeasureStep"), { ssr: false });
 const DesignStep = dynamic(() => import("@/components/DesignStep"), { ssr: false });
 
@@ -392,50 +413,68 @@ export default function App({
   // customer welcome screen (PRD §8.4) before the first photo
   if (customerUX && !welcomeDone && !original && !loadingProject) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-100">
-        <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-8">
-          <div className="text-lg font-bold">
-            <span className="text-blue-400">Houston</span> Sign Crafters
+      <div className="showroom flex min-h-screen items-center justify-center px-6 py-12">
+        <div className="w-full max-w-xl">
+          <div className="rise" style={{ animationDelay: "0ms" }}>
+            <Wordmark />
           </div>
-          <h1 className="mt-4 text-2xl font-bold">
-            {publicMode
-              ? "See your new sign on your building — in 5 minutes"
-              : "See your new sign on your building — before our call"}
+          <h1
+            className="rise mt-8 text-4xl font-extrabold leading-[1.05] tracking-tight text-zinc-900 sm:text-5xl"
+            style={{ animationDelay: "80ms" }}
+          >
+            See your name on
+            <br />
+            your building.
           </h1>
+          <p
+            className="rise mt-5 max-w-md text-base leading-7 text-zinc-600"
+            style={{ animationDelay: "160ms" }}
+          >
+            {publicMode
+              ? "Snap a photo of your storefront and we'll put a finished sign right on it — day and night, with a realistic budget range. About 5 minutes, free, nothing to sign up for."
+              : "Snap a photo of your storefront and we'll put a finished sign right on it — day and night, with a realistic budget range. We'll fine-tune it together on your call."}
+          </p>
           {consultTime && (
-            <p className="mt-2 text-sm text-blue-300">
+            <p
+              className="rise mt-3 text-sm font-medium text-blue-600"
+              style={{ animationDelay: "200ms" }}
+            >
               Your consult: {consultTime}
             </p>
           )}
-          <p className="mt-4 text-sm leading-6 text-zinc-300">
-            {publicMode
-              ? "Snap a photo of your storefront and we'll put a finished sign right on it — day and night — with a realistic budget range. Free, no signup needed."
-              : "This takes about 5 minutes. Snap a photo of your storefront and we'll put a finished sign right on it — day and night — with a realistic budget range. We'll fine-tune it together on the call."}
-          </p>
-          <label className="mt-5 block">
-            <span className="text-sm font-medium text-zinc-100">
+          <div className="rise mt-9" style={{ animationDelay: "240ms" }}>
+            <label
+              htmlFor="bizname"
+              className="block text-sm font-semibold text-zinc-900"
+            >
               What&apos;s your business name?
-            </span>
-            <input
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && startDesign()}
-              placeholder="e.g. Peach Cobbler Co"
-              className="mt-2 w-full rounded-lg border border-zinc-600 bg-zinc-950 px-4 py-3 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-400 focus:outline-none"
-            />
-            <span className="mt-1 block text-xs text-zinc-500">
-              We&apos;ll design your first sign for you — you just tweak it.
-            </span>
-          </label>
-          <button
-            onClick={startDesign}
-            className="mt-5 w-full rounded-lg bg-blue-500 py-3 font-semibold text-white hover:bg-blue-400"
+            </label>
+            <div className="mt-2.5 flex flex-col gap-3 sm:flex-row">
+              <input
+                id="bizname"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && startDesign()}
+                placeholder="e.g. Peach Cobbler Co"
+                className="h-13 flex-1 rounded-xl border border-zinc-300 bg-white px-4 text-base text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.05)] outline-none transition-colors placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+              />
+              <button
+                onClick={startDesign}
+                className="h-13 shrink-0 rounded-xl bg-blue-600 px-6 text-base font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              >
+                Show me my sign
+              </button>
+            </div>
+            <p className="mt-2.5 text-sm text-zinc-500">
+              We design the first version for you — you just tweak it.
+            </p>
+          </div>
+          <p
+            className="rise mt-12 border-t border-zinc-200 pt-4 text-sm text-zinc-500"
+            style={{ animationDelay: "320ms" }}
           >
-            Start my design
-          </button>
-          <p className="mt-3 text-center text-xs text-zinc-500">
-            Nothing here is final — play around. Measurements and pricing are
-            confirmed on your consultation.
+            Nothing here is final — play around. Exact measurements and pricing
+            are confirmed with a real person before anything is built.
           </p>
         </div>
       </div>
@@ -525,9 +564,21 @@ export default function App({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4">
+    <div
+      className={
+        customerUX
+          ? "showroom min-h-screen"
+          : "min-h-screen bg-zinc-950 text-zinc-100"
+      }
+    >
+      <header
+        className={
+          customerUX
+            ? "border-b border-zinc-200 bg-white px-6 py-3.5"
+            : "border-b border-zinc-800 px-6 py-4"
+        }
+      >
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2">
           {!customerUX && (
             <button
               onClick={() => {
@@ -540,15 +591,16 @@ export default function App({
               ← Projects
             </button>
           )}
-          <h1 className="text-lg font-bold tracking-tight">
-            <span className={customerUX ? "text-blue-400" : "text-amber-400"}>
-              {customerUX ? "Houston" : "HSC"}
-            </span>
-            {customerUX ? " Sign Crafters" : ""}
-          </h1>
+          {customerUX ? (
+            <Wordmark small />
+          ) : (
+            <h1 className="text-lg font-bold tracking-tight">
+              <span className="text-amber-400">HSC</span>
+            </h1>
+          )}
           {customerUX ? (
             consultTime && (
-              <span className="text-xs text-zinc-400">
+              <span className="text-xs font-medium text-zinc-500">
                 Consult: {consultTime}
               </span>
             )
@@ -560,32 +612,60 @@ export default function App({
               title="Project name"
             />
           )}
-          <nav className="flex gap-1 text-sm">
-            {STEPS.map((s) => (
-              <button
-                key={s.key}
-                onClick={() => reached(s.key) && setStep(s.key)}
-                disabled={!reached(s.key)}
-                className={`rounded-full px-3 py-1 transition-colors ${
-                  step === s.key
-                    ? customerUX
-                      ? "bg-blue-500 font-semibold text-white"
-                      : "bg-amber-400 font-semibold text-zinc-950"
-                    : reached(s.key)
-                      ? "text-zinc-300 hover:bg-zinc-800"
-                      : "text-zinc-600"
-                }`}
-              >
-                {customerUX ? s.customerLabel : s.label}
-              </button>
+          <nav
+            className={`flex items-center text-sm ${customerUX ? "gap-0 sm:ml-auto" : "gap-1"}`}
+          >
+            {STEPS.map((s, i) => (
+              <span key={s.key} className="flex items-center">
+                {customerUX && i > 0 && (
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 16 16"
+                    className="mx-1 h-3.5 w-3.5 text-zinc-300"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <path d="M6 3.5 10.5 8 6 12.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+                <button
+                  onClick={() => reached(s.key) && setStep(s.key)}
+                  disabled={!reached(s.key)}
+                  className={
+                    customerUX
+                      ? `rounded-md px-2 py-1 transition-colors ${
+                          step === s.key
+                            ? "font-semibold text-blue-600"
+                            : reached(s.key)
+                              ? "font-medium text-zinc-700 hover:text-zinc-900"
+                              : "text-zinc-400"
+                        }`
+                      : `rounded-full px-3 py-1 transition-colors ${
+                          step === s.key
+                            ? "bg-amber-400 font-semibold text-zinc-950"
+                            : reached(s.key)
+                              ? "text-zinc-300 hover:bg-zinc-800"
+                              : "text-zinc-600"
+                        }`
+                  }
+                >
+                  {customerUX ? s.customerLabel.replace(/^\d+ · /, "") : s.label}
+                </button>
+              </span>
             ))}
           </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-6">
+      <main
+        className={`mx-auto px-6 py-6 ${
+          customerUX ? "max-w-[1400px]" : "max-w-7xl"
+        }`}
+      >
         {step === "upload" && (
           <UploadStep
+            customerMode={customerUX}
             onImage={(img) => {
               setOriginal(img);
               setCorrected(null);
@@ -671,21 +751,34 @@ export default function App({
       </main>
 
       {sentTo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-900 p-8 text-center">
-            <div className="text-4xl">📬</div>
-            <h2 className="mt-3 text-xl font-bold text-zinc-100">
-              Proposal sent!
+        <div className="showroom fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 px-4 backdrop-blur-sm">
+          <div className="rise w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-[0_2px_8px_rgba(24,24,27,0.08),0_24px_64px_-16px_rgba(24,24,27,0.35)]">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                className="h-7 w-7 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              >
+                <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+                <path d="m3.5 7 8.5 6 8.5-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-zinc-900">
+              Your proposal is on its way
             </h2>
-            <p className="mt-2 text-sm text-zinc-300">
-              Check <b>{sentTo}</b> for your mockup and budget estimate.
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              Check <b className="text-zinc-900">{sentTo}</b> for your mockup
+              and budget estimate.
             </p>
             {consultTime ? (
-              <p className="mt-2 text-sm text-blue-300">
+              <p className="mt-2 text-sm font-medium text-blue-600">
                 We&apos;ll review it together on {consultTime}.
               </p>
             ) : (
-              <p className="mt-2 text-sm text-zinc-300">
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
                 Want exact pricing, permits, and a timeline? Grab a free
                 15-minute call — we&apos;ll pull up your design together.
               </p>
@@ -697,15 +790,15 @@ export default function App({
             {!consultTime && (
               <a
                 href="https://houstonsigncrafters.com/book"
-                className="mt-5 block w-full rounded-lg bg-blue-500 py-3 font-semibold text-white hover:bg-blue-400"
+                className="mt-6 block w-full rounded-xl bg-blue-600 py-3 font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
               >
                 Book my free call
               </a>
             )}
             <button
               onClick={() => setSentTo(null)}
-              className={`rounded-lg border border-zinc-600 px-5 py-2 text-sm text-zinc-200 hover:bg-zinc-800 ${
-                consultTime ? "mt-5" : "mt-3"
+              className={`rounded-xl px-5 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 ${
+                consultTime ? "mt-6" : "mt-2"
               }`}
             >
               Back to my design

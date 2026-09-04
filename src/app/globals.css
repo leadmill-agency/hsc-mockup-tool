@@ -24,3 +24,42 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Customer-facing "bright showroom" surface: Barlow voice, warm-white ground.
+   Scoped by class so the staff cockpit keeps its incumbent look. */
+.showroom {
+  font-family: var(--font-barlow), "Barlow", "Helvetica Neue", Arial, sans-serif;
+  background: #f7f7f5;
+  color: #18181b;
+  color-scheme: light;
+}
+/* OS-dark users: keep scrollbars and overscroll light on showroom pages */
+html:has(.showroom),
+body:has(.showroom) {
+  background: #f7f7f5;
+  color-scheme: light;
+}
+.showroom ::selection {
+  background: #bfdbfe;
+}
+
+/* The showroom's one authored motion: content settles into place the way a
+   sign face is offered up to a wall — a slow exponential ease, staggered. */
+@keyframes showroom-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.showroom .rise {
+  animation: showroom-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .showroom .rise {
+    animation: none;
+  }
+}

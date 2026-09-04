@@ -177,7 +177,11 @@ export default function SquareUpStep({
     <div className="flex flex-col gap-6 lg:flex-row">
       <div
         ref={containerRef}
-        className="relative flex min-h-[420px] flex-1 items-center justify-center overflow-hidden rounded-xl bg-zinc-950"
+        className={`relative flex min-h-[420px] flex-1 items-center justify-center overflow-hidden ${
+          customerMode
+            ? "rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
+            : "rounded-xl bg-zinc-950"
+        }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -197,9 +201,11 @@ export default function SquareUpStep({
         <div
           className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, rgba(255,193,7,.35) 0 1px, transparent 1px 60px)," +
-              "repeating-linear-gradient(90deg, rgba(255,193,7,.35) 0 1px, transparent 1px 60px)",
+            backgroundImage: customerMode
+              ? "repeating-linear-gradient(0deg, rgba(147,197,253,.4) 0 1px, transparent 1px 60px)," +
+                "repeating-linear-gradient(90deg, rgba(147,197,253,.4) 0 1px, transparent 1px 60px)"
+              : "repeating-linear-gradient(0deg, rgba(255,193,7,.35) 0 1px, transparent 1px 60px)," +
+                "repeating-linear-gradient(90deg, rgba(255,193,7,.35) 0 1px, transparent 1px 60px)",
           }}
         />
         {crop && (
@@ -253,11 +259,17 @@ export default function SquareUpStep({
 
       <div className="w-full shrink-0 space-y-5 lg:w-80">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100">
+          <h2
+            className={
+              customerMode
+                ? "text-2xl font-extrabold tracking-tight text-zinc-900"
+                : "text-lg font-semibold text-zinc-100"
+            }
+          >
             {customerMode ? "Does the photo look straight?" : "Square up the photo"}
           </h2>
           {customerMode ? (
-            <p className="mt-1 text-sm text-zinc-400">
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
               If your building looks straight against the grid, just continue.
               Otherwise nudge the sliders until it lines up — close is good
               enough.
@@ -268,7 +280,13 @@ export default function SquareUpStep({
               columns are vertical against the grid.
             </p>
           )}
-          <p className="mt-2 text-xs text-zinc-500">
+          <p
+            className={
+              customerMode
+                ? "mt-2 text-sm text-zinc-500"
+                : "mt-2 text-xs text-zinc-500"
+            }
+          >
             Drag the white corners to crop in on the storefront — a tight crop
             makes measuring and placing the sign much easier.
           </p>
@@ -276,8 +294,22 @@ export default function SquareUpStep({
         {SLIDERS.map((s) => (
           <label key={s.key} className="block">
             <div className="flex items-baseline justify-between text-sm">
-              <span className="font-medium text-zinc-200">{s.label}</span>
-              <span className="tabular-nums text-zinc-400">
+              <span
+                className={
+                  customerMode
+                    ? "font-semibold text-zinc-900"
+                    : "font-medium text-zinc-200"
+                }
+              >
+                {s.label}
+              </span>
+              <span
+                className={
+                  customerMode
+                    ? "tabular-nums text-zinc-500"
+                    : "tabular-nums text-zinc-400"
+                }
+              >
                 {params[s.key].toFixed(1)}°
               </span>
             </div>
@@ -291,7 +323,7 @@ export default function SquareUpStep({
               onChange={(e) =>
                 setParams((p) => ({ ...p, [s.key]: Number(e.target.value) }))
               }
-              className="mt-1 w-full accent-amber-400"
+              className={`mt-1 w-full ${customerMode ? "accent-blue-600" : "accent-amber-400"}`}
             />
           </label>
         ))}
@@ -299,10 +331,10 @@ export default function SquareUpStep({
           <button
             onClick={apply}
             disabled={baking}
-            className={`rounded-lg px-5 py-2 font-semibold disabled:opacity-50 ${
+            className={`font-semibold disabled:opacity-50 ${
               customerMode
-                ? "bg-blue-500 text-white hover:bg-blue-400"
-                : "bg-amber-400 text-zinc-950 hover:bg-amber-300"
+                ? "rounded-xl bg-blue-600 px-6 py-2.5 text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                : "rounded-lg bg-amber-400 px-5 py-2 text-zinc-950 hover:bg-amber-300"
             }`}
           >
             {baking
@@ -316,18 +348,26 @@ export default function SquareUpStep({
               setParams(DEFAULT_SQUARE);
               setTimeout(initCrop, 60);
             }}
-            className="rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+            className={
+              customerMode
+                ? "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                : "rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+            }
           >
             Reset
           </button>
           <button
             onClick={onReplacePhoto}
-            className="rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+            className={
+              customerMode
+                ? "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                : "rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+            }
           >
             Replace photo
           </button>
         </div>
-        <p className="text-xs text-zinc-500">
+        <p className={customerMode ? "text-sm text-zinc-500" : "text-xs text-zinc-500"}>
           The original photo is never modified — corrections are stored as
           parameters and can be re-applied.
         </p>

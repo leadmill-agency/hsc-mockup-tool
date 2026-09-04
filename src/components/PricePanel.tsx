@@ -91,8 +91,22 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
 
   return (
     <div className="w-full shrink-0 space-y-4 lg:w-80">
-      <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <h3 className="font-semibold text-zinc-100">Your sign</h3>
+      <div
+        className={
+          customer
+            ? "rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-16px_rgba(24,24,27,0.18)] ring-1 ring-zinc-200"
+            : "rounded-xl border border-zinc-700 bg-zinc-900 p-4"
+        }
+      >
+        <h3
+          className={
+            customer
+              ? "text-lg font-bold tracking-tight text-zinc-900"
+              : "font-semibold text-zinc-100"
+          }
+        >
+          Your sign
+        </h3>
 
         <div className="mt-3 space-y-2 text-sm">
           {pieces.length === 0 && (
@@ -102,41 +116,49 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
           )}
           {pieces.map((p, i) => (
             <div key={i} className="flex justify-between gap-2">
-              <span className="truncate text-zinc-400">{p.label}</span>
-              <span className="whitespace-nowrap tabular-nums text-zinc-200">
+              <span className={customer ? "truncate text-zinc-600" : "truncate text-zinc-400"}>
+                {p.label}
+              </span>
+              <span
+                className={`whitespace-nowrap tabular-nums font-medium ${
+                  customer ? "text-zinc-900" : "text-zinc-200"
+                }`}
+              >
                 {formatFeetInches(p.heightInches)} tall
               </span>
             </div>
           ))}
         </div>
 
-        {pieces.length > 0 && (
-          <div
-            className={`mt-4 rounded-lg p-4 text-center ${
-              customer ? "bg-blue-500/10" : "bg-amber-400/10"
-            }`}
-          >
-            <div
-              className={`text-xs uppercase tracking-wide ${
-                customer ? "text-blue-300/80" : "text-amber-300/80"
-              }`}
-            >
-              Estimated project investment
+        {pieces.length > 0 &&
+          (customer ? (
+            <div className="mt-4 rounded-xl bg-blue-600 p-4 text-white shadow-[0_2px_8px_rgba(37,99,235,0.35)]">
+              <div className="text-sm font-medium text-blue-100">
+                Estimated investment
+              </div>
+              <div className="mt-0.5 text-[26px] font-extrabold leading-tight tracking-tight tabular-nums">
+                {formatUsd(pricing.low)} – {formatUsd(pricing.high)}
+              </div>
+              <div className="mt-1.5 text-sm leading-snug text-blue-100">
+                Final pricing is confirmed with a real person on your
+                consultation.
+              </div>
             </div>
-            <div
-              className={`mt-1 text-2xl font-bold tabular-nums ${
-                customer ? "text-blue-300" : "text-amber-300"
-              }`}
-            >
-              {formatUsd(pricing.low)} – {formatUsd(pricing.high)}
+          ) : (
+            <div className="mt-4 rounded-lg bg-amber-400/10 p-4 text-center">
+              <div className="text-xs uppercase tracking-wide text-amber-300/80">
+                Estimated project investment
+              </div>
+              <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
+                {formatUsd(pricing.low)} – {formatUsd(pricing.high)}
+              </div>
+              <div className="mt-1 text-xs text-zinc-400">
+                Final pricing confirmed at your consultation
+              </div>
             </div>
-            <div className="mt-1 text-xs text-zinc-400">
-              Final pricing confirmed at your consultation
-            </div>
-          </div>
-        )}
+          ))}
 
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className={customer ? "mt-3 text-xs leading-5 text-zinc-500" : "mt-3 text-xs text-zinc-500"}>
           Preliminary estimate from photographic measurement. Final pricing
           requires site verification.
         </p>

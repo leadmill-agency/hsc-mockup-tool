@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-04T00:00:00Z",
+  "title": "Design System: HSC Sign Mockup Tool",
+  "extensions": {
+    "colorMeta": {
+      "showroom-blue": {
+        "role": "primary",
+        "displayName": "Showroom Blue",
+        "canonical": "#2563eb",
+        "tonalRamp": ["oklch(20% 0.14 262)", "oklch(30% 0.16 262)", "oklch(40% 0.18 262)", "oklch(50% 0.2 262)", "oklch(59% 0.2 262)", "oklch(70% 0.15 262)", "oklch(84% 0.08 262)", "oklch(95% 0.03 262)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#18181b",
+        "tonalRamp": ["oklch(15% 0.005 286)", "oklch(24% 0.005 286)", "oklch(37% 0.005 286)", "oklch(49% 0.005 286)", "oklch(62% 0.004 286)", "oklch(75% 0.004 286)", "oklch(87% 0.003 286)", "oklch(95% 0.002 286)"]
+      },
+      "warm-white": {
+        "role": "neutral",
+        "displayName": "Warm White",
+        "canonical": "#f7f7f5",
+        "tonalRamp": ["oklch(20% 0.004 90)", "oklch(35% 0.004 90)", "oklch(50% 0.004 90)", "oklch(65% 0.004 90)", "oklch(78% 0.004 90)", "oklch(88% 0.004 90)", "oklch(94% 0.004 90)", "oklch(97.5% 0.003 90)"]
+      },
+      "night-wash": {
+        "role": "neutral",
+        "displayName": "Night Wash",
+        "canonical": "#0b1120",
+        "tonalRamp": ["oklch(15% 0.03 262)", "oklch(24% 0.04 262)", "oklch(34% 0.05 262)", "oklch(45% 0.05 262)", "oklch(57% 0.05 262)", "oklch(70% 0.04 262)", "oklch(83% 0.03 262)", "oklch(94% 0.01 262)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Welcome headline only ('See your name on your building.'); 2.25rem, 3rem at sm+." },
+      "headline": { "displayName": "Headline", "purpose": "Step headings and modal titles; 1.5-1.875rem." },
+      "title": { "displayName": "Title", "purpose": "Card headings ('Your sign', 'Pick a look')." },
+      "body": { "displayName": "Body", "purpose": "Explanatory copy under headings, zinc-600." },
+      "label": { "displayName": "Label", "purpose": "Buttons, form labels, hints; dimensions and money always tabular-nums." }
+    },
+    "shadows": [
+      { "name": "card-resting", "value": "0 1px 2px rgba(24,24,27,0.05), 0 12px 32px -16px rgba(24,24,27,0.18)", "purpose": "Sidebar cards and the upload dropzone at rest." },
+      { "name": "stage", "value": "0 2px 6px rgba(24,24,27,0.08), 0 20px 48px -20px rgba(24,24,27,0.35)", "purpose": "The dark rounded-2xl canvas frame — deepest neutral shadow on screen." },
+      { "name": "popover", "value": "0 2px 8px rgba(24,24,27,0.08), 0 20px 48px -16px rgba(24,24,27,0.25)", "purpose": "Font-picker dropdown panel." },
+      { "name": "modal", "value": "0 2px 8px rgba(24,24,27,0.08), 0 24px 64px -16px rgba(24,24,27,0.35)", "purpose": "Email dialog and sent-confirmation card, over a zinc-900/50 blurred scrim." },
+      { "name": "blue-glow-cta", "value": "0 2px 6px rgba(37,99,235,0.35)", "purpose": "Primary CTAs; blue elements cast blue shadows." },
+      { "name": "blue-glow-callout", "value": "0 2px 8px rgba(37,99,235,0.35)", "purpose": "The solid-blue price callout block." },
+      { "name": "look-card-active", "value": "0 2px 6px rgba(37,99,235,0.15), 0 12px 28px -12px rgba(37,99,235,0.35)", "purpose": "Selected look card: the ink shadow is promoted to blue, plus ring-2 blue." },
+      { "name": "wordmark-chip", "value": "0 2px 8px rgba(37,99,235,0.45)", "purpose": "The lit sign-panel mark in the brand lockup." }
+    ],
+    "motion": [
+      { "name": "showroom-rise", "value": "0.7s cubic-bezier(0.16, 1, 0.3, 1) both — from opacity 0 / translateY(14px)", "purpose": "The showroom's only authored motion; stagger entrances with animationDelay 0/80/160/240/320ms; disabled under prefers-reduced-motion." },
+      { "name": "transition-colors", "value": "Tailwind transition-colors (150ms ease)", "purpose": "Default hover easing on buttons, inputs, and nav items." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px — two-column design/measure layout engages (flex-row, w-80 sidebar)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one next step per view; solid blue with a blue glow.",
+      "html": "<button class=\"ds-btn-primary\">Show me my sign</button>",
+      "css": ".ds-btn-primary { background: #2563eb; color: #fff; font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; font-weight: 600; padding: 10px 24px; border: none; border-radius: 12px; box-shadow: 0 2px 6px rgba(37,99,235,0.35); cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-primary:hover { background: #3b82f6; } .ds-btn-primary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet white outlined action; also the destructive recipe (never red).",
+      "html": "<button class=\"ds-btn-secondary\">Replace photo</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #3f3f46; font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; font-weight: 500; padding: 10px 16px; border: 1px solid #d4d4d8; border-radius: 12px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease; } .ds-btn-secondary:hover { border-color: #a1a1aa; color: #18181b; } .ds-btn-secondary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "White field, zinc border, blue border-plus-ring focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"e.g. Peach Cobbler Co\" />",
+      "css": ".ds-input { background: #ffffff; color: #18181b; font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 12px; outline: none; box-shadow: 0 1px 2px rgba(24,24,27,0.05); transition: border-color 0.15s ease; } .ds-input::placeholder { color: #a1a1aa; } .ds-input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White raised surface: rounded-2xl, hairline ring, soft two-part ink shadow.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Your sign</h3><p class=\"ds-card-body\">Add sign text or a logo to see your estimate.</p></div>",
+      "css": ".ds-card { background: #ffffff; color: #18181b; padding: 20px; border-radius: 16px; box-shadow: 0 0 0 1px #e4e4e7, 0 1px 2px rgba(24,24,27,0.05), 0 12px 32px -16px rgba(24,24,27,0.18); font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; } .ds-card-title { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.025em; color: #18181b; } .ds-card-body { margin: 12px 0 0; font-size: 14px; color: #71717a; }"
+    },
+    {
+      "name": "Price Callout",
+      "kind": "custom",
+      "description": "The money moment owns the accent: solid blue block with the extrabold tabular range.",
+      "html": "<div class=\"ds-price\"><div class=\"ds-price-label\">Estimated investment</div><div class=\"ds-price-range\">$8,200 &ndash; $9,800</div><div class=\"ds-price-note\">Final pricing is confirmed with a real person on your consultation.</div></div>",
+      "css": ".ds-price { background: #2563eb; color: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 8px rgba(37,99,235,0.35); font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; } .ds-price-label { font-size: 14px; font-weight: 500; color: #dbeafe; } .ds-price-range { margin-top: 2px; font-size: 26px; font-weight: 800; line-height: 1.15; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; } .ds-price-note { margin-top: 6px; font-size: 14px; line-height: 1.375; color: #dbeafe; }"
+    },
+    {
+      "name": "Look Card",
+      "kind": "custom",
+      "description": "Signature component: a white card with a miniature dark stage previewing the sign look in its real lettering font; selection turns the ring and shadow blue.",
+      "html": "<button class=\"ds-look ds-look-active\"><span class=\"ds-look-stage\"><span class=\"ds-look-text\">Peach Cobbler Co</span></span><span class=\"ds-look-name\">Classic Glow <svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"#2563eb\" stroke-width=\"2\"><path d=\"m3.5 8.5 3 3 6-7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span><span class=\"ds-look-blurb\">White letters that light up at night</span></button>",
+      "css": ".ds-look { display: inline-block; width: 192px; background: #ffffff; padding: 10px; border: none; border-radius: 16px; text-align: left; cursor: pointer; font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; box-shadow: 0 0 0 1px #e4e4e7, 0 1px 2px rgba(24,24,27,0.05), 0 8px 20px -12px rgba(24,24,27,0.2); } .ds-look:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; } .ds-look-active { box-shadow: 0 0 0 2px #2563eb, 0 2px 6px rgba(37,99,235,0.15), 0 12px 28px -12px rgba(37,99,235,0.35); } .ds-look-stage { display: flex; height: 80px; align-items: center; justify-content: center; overflow: hidden; border-radius: 12px; background: linear-gradient(180deg, #101014 0%, #23232a 100%); } .ds-look-text { color: #fafafa; font-weight: 700; font-size: 15px; white-space: nowrap; text-shadow: 0 0 10px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.45); } .ds-look-name { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 0 2px; font-size: 14px; font-weight: 600; color: #18181b; } .ds-look-blurb { display: block; padding: 0 2px; font-size: 12px; line-height: 1.375; color: #71717a; }"
+    },
+    {
+      "name": "Day/Night Toggle",
+      "kind": "chip",
+      "description": "Segmented control on the canvas toolbar: active Day is ink, active Night is blue.",
+      "html": "<div class=\"ds-daynight\"><button class=\"ds-seg ds-seg-day-active\">Day</button><button class=\"ds-seg\">Night</button></div>",
+      "css": ".ds-daynight { display: inline-flex; overflow: hidden; padding: 2px; background: #ffffff; border: 1px solid #d4d4d8; border-radius: 12px; font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; } .ds-seg { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 14px; font-weight: 500; color: #71717a; background: transparent; border: none; border-radius: 8px; cursor: pointer; transition: color 0.15s ease; } .ds-seg:hover { color: #18181b; } .ds-seg:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; } .ds-seg-day-active { background: #18181b; color: #ffffff; } .ds-seg-day-active:hover { color: #ffffff; }"
+    },
+    {
+      "name": "Step Nav",
+      "kind": "nav",
+      "description": "Plain-text steps with drawn chevron separators: blue active, zinc reachable, faded locked.",
+      "html": "<nav class=\"ds-steps\"><button class=\"ds-step\">Photo</button><svg class=\"ds-step-sep\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"#d4d4d8\" stroke-width=\"1.5\"><path d=\"M6 3.5 10.5 8 6 12.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><button class=\"ds-step ds-step-active\">Straighten</button><svg class=\"ds-step-sep\" viewBox=\"0 0 16 16\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"#d4d4d8\" stroke-width=\"1.5\"><path d=\"M6 3.5 10.5 8 6 12.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><button class=\"ds-step ds-step-locked\" disabled>Size</button></nav>",
+      "css": ".ds-steps { display: flex; align-items: center; font-family: Barlow, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; } .ds-step { padding: 4px 8px; background: transparent; border: none; border-radius: 6px; font-weight: 500; color: #3f3f46; cursor: pointer; transition: color 0.15s ease; } .ds-step:hover { color: #18181b; } .ds-step:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; } .ds-step-active { font-weight: 600; color: #2563eb; } .ds-step-locked { color: #a1a1aa; cursor: default; } .ds-step-sep { margin: 0 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Daylight Showroom",
+    "overview": "The customer surface reads as a real sign shop's showroom with the lights on: warm-white walls, ink lettering, one confident blue, and — at the center — a single dark framed stage where the customer's own building hangs like the exhibit. Everything around the stage is bright, quiet, and card-based; the only dark surface on the page is the photo canvas itself, so day scenes read naturally and lit signs pop at night. The voice is a working tradesperson's: friendly imperatives, no jargon, and reassurance at every irreversible-feeling moment.\n\nThe build refuses the dark-panel configurator default. Chrome never competes with the mockup: controls are white cards and quiet outlined buttons; the blue is reserved for the one thing to do next (the CTA, the active step, the selected look, the price). Sign-industry controls exist but hide behind a 'Fine-tune' reveal; the default path is reacting to finished looks, not composing from parts.",
+    "keyCharacteristics": [
+      "Warm-white ground, ink text, exactly one brand hue (blue #2563eb)",
+      "White cards floated on soft two-part offset shadows; hairline zinc borders/rings",
+      "One dark surface per screen: the rounded-2xl zinc-900 canvas stage",
+      "Barlow everywhere in the UI; real sign-lettering webfonts only on the sign itself",
+      "Drawn stroke-SVG icons, blue focus rings, a single 'rise' entrance motion"
+    ],
+    "rules": [
+      { "name": "The One-Blue Rule", "body": "Blue #2563eb is the only brand hue on customer surfaces. Owner-pinned: the brand is black and blue only. Anything that is not blue is ink, zinc, or white.", "section": "colors" },
+      { "name": "The No-Red Rule", "body": "Even destructive actions stay ink on customer surfaces — the customer Delete button is a quiet white/zinc outline button, never red. Red is a staff-cockpit convention only.", "section": "colors" },
+      { "name": "The Dark-Stage Rule", "body": "Exactly one dark surface per customer screen: the photo canvas (rounded-2xl bg-zinc-900 + stage shadow). Look-card previews repeat it in miniature. Nothing else on the showroom goes dark.", "section": "colors" },
+      { "name": "The Two-Faces Rule", "body": "Barlow is the only UI face. Sign-lettering webfonts appear exclusively as sign faces on the canvas, in look-card previews, and in the font picker's preview lines — never in chrome.", "section": "typography" },
+      { "name": "The Bold-Tight Rule", "body": "Every heading is 700-800 weight with tracking-tight; hierarchy is carried by weight and size, never by color alone or by uppercase kickers (the system has none).", "section": "typography" },
+      { "name": "The Blue-Glow Rule", "body": "Blue elements cast blue shadows; neutral elements cast ink shadows. Selection promotes a card's ink shadow to a blue one.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do scope every customer-facing style behind .showroom and the customerMode/customerUX props; the staff cockpit must render byte-identically after showroom work.",
+      "Do use the two-material pattern for shared components: one markup tree, two class maps (tb in DesignStep.tsx, styles(customer) in FontPicker.tsx, ternary classNames elsewhere). Never fork the markup per surface.",
+      "Do give every interactive element the blue focus treatment: outline-blue-600 outlines on buttons, border-blue-600 + ring-blue-600/20 on inputs.",
+      "Do load a sign font with loadGoogleFont() and call invalidateCapHeight() before measuring or applying it — cap-height drives pricing.",
+      "Do use .rise with staggered animationDelay (0/80/160/240/320ms) for entrances — it is the showroom's only authored motion (0.7s cubic-bezier(0.16,1,0.3,1) from translateY(14px), disabled under prefers-reduced-motion).",
+      "Do end reassurance copy at moments of commitment ('A rough guess is fine — we confirm exact measurements before anything is built.').",
+      "Do keep dimensions and money in tabular-nums."
+    ],
+    "donts": [
+      "Don't use amber on customer surfaces — amber is the staff cockpit's accent and is out of scope for customer work.",
+      "Don't use red anywhere on customer surfaces, including destructive actions and errors; the brand is black and blue only (owner-pinned).",
+      "Don't introduce a second dark surface — the zinc-900 stage (and its miniature in look cards) is the only one.",
+      "Don't set UI text in a sign-lettering font, or sign faces in Barlow.",
+      "Don't show internal pricing machinery (cost breakdown, margins, add-on counts, config fields) to customers — PricePanel renders sizes and the investment range only; the internals block is absent, not hidden.",
+      "Don't use icon libraries, icon fonts, or emoji on the showroom; draw the stroke path inline.",
+      "Don't truncate the customer's business name — scale it down instead."
+    ]
+  }
+}

@@ -42,7 +42,13 @@ import { buildProposalHtml } from "@/lib/proposal";
 import FontPicker from "@/components/FontPicker";
 import { elementsToPieces } from "@/components/PricePanel";
 import { uploadAsset } from "@/lib/cloud";
-import { lookPatch, SIGN_LOOKS, SignLook } from "@/lib/looks";
+import {
+  DEFAULT_LOOK_FONT,
+  DEFAULT_LOOK_GOOGLE,
+  lookPatch,
+  SIGN_LOOKS,
+  SignLook,
+} from "@/lib/looks";
 
 interface Props {
   image: HTMLImageElement;
@@ -83,6 +89,29 @@ const LIGHTING_OPTIONS: { value: Lighting; label: string }[] = [
   { value: "halo", label: "Halo-lit" },
   { value: "none", label: "Non-illuminated" },
 ];
+
+function StrokeIcon({ d, className }: { d: string; className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className={className ?? "h-4.5 w-4.5"}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+const ICON = {
+  undo: "M8 5 4 9l4 4M4 9h10a6 6 0 0 1 0 12h-3",
+  redo: "m16 5 4 4-4 4M20 9H10a6 6 0 0 0 0 12h3",
+  sun: "M12 4v1.5M12 18.5V20M4 12h1.5M18.5 12H20M6.3 6.3l1.1 1.1M16.6 16.6l1.1 1.1M6.3 17.7l1.1-1.1M16.6 7.4l1.1-1.1M12 8.25a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5Z",
+  moon: "M20 13.2A7.5 7.5 0 0 1 10.8 4 7.5 7.5 0 1 0 20 13.2Z",
+};
 
 /** Darken/lighten a #rrggbb color. */
 function shade(hex: string, factor: number): string {
@@ -362,9 +391,35 @@ export default function DesignStep({
   onBack,
   sidebar,
 }: Props) {
+  // The stage shrinks with its column so phones never scroll sideways, and
+  // for customers it grows with the viewport — the building is the exhibit.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [colW, setColW] = useState(MAX_W);
+  const [maxH, setMaxH] = useState(MAX_H);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => {
+      setColW(Math.min(MAX_W, el.clientWidth || MAX_W));
+      setMaxH(
+        customerMode
+          ? Math.min(700, Math.max(420, window.innerHeight - 340))
+          : MAX_H
+      );
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [customerMode]);
+
   const scale = Math.min(
-    MAX_W / image.naturalWidth,
-    MAX_H / image.naturalHeight,
+    colW / image.naturalWidth,
+    maxH / image.naturalHeight,
     1
   );
   const stageW = image.naturalWidth * scale;
@@ -380,6 +435,12 @@ export default function DesignStep({
   const [night, setNight] = useState(false);
   // Customer mode: jargon controls hide behind this toggle (PRD non-designer UX)
   const [fineTune, setFineTune] = useState(false);
+  // Email-gated proposal: a showroom dialog collects the address (no native
+  // prompt at the conversion moment) and carries send errors inline.
+  const [emailAsk, setEmailAsk] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
@@ -394,35 +455,53 @@ export default function DesignStep({
     const text = (businessName ?? "").trim();
     if (!text) return;
     autoAdded.current = true;
-    const family = SIGN_FONT;
-    let fontSize = fontSizeForLetterHeight(18, ipp, family);
-    const maxW = image.naturalWidth * 0.7;
-    const w = measureTextWidth(text, fontSize, family);
-    if (w > maxW) fontSize *= maxW / w;
-    fontSize = Math.max(fontSize, fontSizeForLetterHeight(8, ipp, family));
-    const finalW = measureTextWidth(text, fontSize, family);
-    const anchor = signAnchorY ?? image.naturalHeight * 0.4;
-    const el: TextElement = {
-      id: `t${Date.now()}`,
-      kind: "text",
-      text,
-      x: Math.max(0, (image.naturalWidth - finalW) / 2),
-      y: Math.max(
-        image.naturalHeight * 0.02,
-        anchor - image.naturalHeight * 0.03 - fontSize
-      ),
-      fontSize,
-      fill: "#f5f5f5",
-      trimColor: "#26221f",
-      lighting: "front",
-      ledColor: "#ffffff",
-      fontFamily: family,
-      rotation: 0,
-    };
-    setElements((els) => (els.length ? els : [...els, el]));
-    setSelectedId(el.id);
+    void (async () => {
+      // real sign lettering, measured after the webfont is usable so the
+      // cap-height (and the price) reflect the actual glyphs
+      const family = DEFAULT_LOOK_FONT;
+      await loadGoogleFont(DEFAULT_LOOK_GOOGLE).catch(() => {});
+      invalidateCapHeight(family);
+      let fontSize = fontSizeForLetterHeight(18, ipp, family);
+      const maxW = image.naturalWidth * 0.7;
+      const w = measureTextWidth(text, fontSize, family);
+      if (w > maxW) fontSize *= maxW / w;
+      fontSize = Math.max(fontSize, fontSizeForLetterHeight(8, ipp, family));
+      const finalW = measureTextWidth(text, fontSize, family);
+      const anchor = signAnchorY ?? image.naturalHeight * 0.4;
+      const el: TextElement = {
+        id: `t${Date.now()}`,
+        kind: "text",
+        text,
+        x: Math.max(0, (image.naturalWidth - finalW) / 2),
+        y: Math.max(
+          image.naturalHeight * 0.02,
+          anchor - image.naturalHeight * 0.03 - fontSize
+        ),
+        fontSize,
+        fill: "#f5f5f5",
+        trimColor: "#26221f",
+        lighting: "front",
+        ledColor: "#ffffff",
+        fontFamily: family,
+        rotation: 0,
+      };
+      setElements((els) => (els.length ? els : [...els, el]));
+      setSelectedId(el.id);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerMode, businessName, elements.length]);
+
+  // Preload the look fonts so card previews and applies render real lettering
+  useEffect(() => {
+    if (!customerMode) return;
+    for (const l of SIGN_LOOKS) {
+      if (l.googleName) {
+        void loadGoogleFont(l.googleName).then(() =>
+          invalidateCapHeight(l.patch.fontFamily!)
+        );
+      }
+    }
+  }, [customerMode]);
 
   useEffect(() => {
     const tr = trRef.current;
@@ -936,11 +1015,14 @@ export default function DesignStep({
       if (win) win.location.href = out.url;
       if (silent && toEmail) {
         if (out.emailed) {
+          setEmailAsk(false);
+          setEmailErr(null);
           onProposalSent?.(toEmail);
         } else {
-          alert(
-            "We couldn't email your proposal just now — your sign specialist will send it to you shortly."
+          setEmailErr(
+            "We couldn't email your proposal just now — call or text (832) 974-2546 and we'll send it right over."
           );
+          setEmailAsk(true);
         }
         return;
       }
@@ -956,10 +1038,23 @@ export default function DesignStep({
     } catch (e) {
       win?.close();
       if (silent) {
-        alert("Something went wrong creating your proposal — please try again.");
+        setEmailErr(
+          "Something went wrong creating your proposal — press Send to try again."
+        );
+        setEmailAsk(true);
       } else {
         alert(`Could not create the proposal: ${e instanceof Error ? e.message : e}`);
       }
+    }
+  };
+
+  /** Customer send with busy state; errors surface in the email dialog. */
+  const sendProposalTo = async (to: string) => {
+    setSending(true);
+    try {
+      await makeProposal(to, true);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -985,6 +1080,43 @@ export default function DesignStep({
         : { w: selected.width * ipp, h: selected.height * ipp }
       : null);
 
+  // Toolbar class map: bright-showroom controls for customers, the incumbent
+  // dark cockpit for staff. Same markup, two materials.
+  const focusRing =
+    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+  const tb = customerMode
+    ? {
+        iconBtn: `rounded-lg border border-zinc-300 bg-white p-2 text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 disabled:opacity-40 ${focusRing}`,
+        btn: `rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 ${focusRing}`,
+        input:
+          "w-40 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20",
+        select: `rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-700 ${focusRing}`,
+        label: "flex items-center gap-2 text-sm text-zinc-700",
+        labelTight: "flex items-center gap-1 text-sm text-zinc-700",
+        color: `h-8 w-10 cursor-pointer rounded border border-zinc-300 bg-white ${focusRing}`,
+        num: "rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-right tabular-nums text-zinc-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20",
+        chip: `rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 ${focusRing}`,
+        check: "h-4 w-4 accent-blue-600",
+        // pinned brand: black and blue only — destructive stays ink, not red
+        del: `rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:border-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 ${focusRing}`,
+      }
+    : {
+        iconBtn:
+          "rounded-lg border border-zinc-600 p-2 text-zinc-200 hover:bg-zinc-800 disabled:opacity-40",
+        btn: "rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600",
+        input:
+          "w-40 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100",
+        select:
+          "rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-2 text-sm text-zinc-100",
+        label: "flex items-center gap-2 text-sm text-zinc-300",
+        labelTight: "flex items-center gap-1 text-sm text-zinc-300",
+        color: "h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900",
+        num: "rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100",
+        chip: "rounded-lg border border-zinc-600 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800",
+        check: "h-4 w-4 accent-amber-400",
+        del: "rounded-lg border border-red-500/50 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10",
+      };
+
   // "Pick a look" applies to the selected text element, else the first one.
   const lookTarget =
     selected?.kind === "text"
@@ -997,13 +1129,19 @@ export default function DesignStep({
     el.fill === look.patch.fill;
   const applyLook = (look: SignLook) => {
     if (!lookTarget) return;
-    commit(lookTarget.id, lookPatch(lookTarget, look, ipp));
-    setSelectedId(lookTarget.id);
+    void (async () => {
+      if (look.googleName) {
+        await loadGoogleFont(look.googleName).catch(() => {});
+        invalidateCapHeight(look.patch.fontFamily!);
+      }
+      commit(lookTarget.id, lookPatch(lookTarget, look, ipp));
+      setSelectedId(lookTarget.id);
+    })();
   };
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <div className="flex-1">
+      <div ref={wrapRef} className="min-w-0 flex-1">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
@@ -1012,9 +1150,9 @@ export default function DesignStep({
             }}
             disabled={!canUndo}
             title="Undo (⌘Z)"
-            className="rounded-lg border border-zinc-600 px-2.5 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+            className={tb.iconBtn}
           >
-            ↺
+            <StrokeIcon d={ICON.undo} className="h-4 w-4" />
           </button>
           <button
             onClick={() => {
@@ -1023,26 +1161,26 @@ export default function DesignStep({
             }}
             disabled={!canRedo}
             title="Redo (⇧⌘Z)"
-            className="rounded-lg border border-zinc-600 px-2.5 py-2 text-sm text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+            className={tb.iconBtn}
           >
-            ↻
+            <StrokeIcon d={ICON.redo} className="h-4 w-4" />
           </button>
           <input
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addText()}
             placeholder="Sign text…"
-            className="w-40 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+            className={tb.input}
           />
           <button
             onClick={addText}
-            className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600"
+            className={tb.btn}
           >
             Add text
           </button>
           <button
             onClick={() => logoInputRef.current?.click()}
-            className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600"
+            className={tb.btn}
           >
             Upload logo
           </button>
@@ -1050,7 +1188,7 @@ export default function DesignStep({
             <button
               onClick={addPanel}
               title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
-              className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600"
+              className={tb.btn}
             >
               Add panel
             </button>
@@ -1064,14 +1202,14 @@ export default function DesignStep({
           />
           {showAdvanced && selected?.kind === "panel" && (
             <>
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 Panel
                 <input
                   type="color"
                   title="Panel color"
                   value={selected.fill ?? "#3a2f28"}
                   onChange={(e) => commit(selected.id, { fill: e.target.value })}
-                  className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                  className={tb.color}
                 />
               </label>
               <button
@@ -1085,12 +1223,12 @@ export default function DesignStep({
                     ),
                   })
                 }
-                className="rounded-lg border border-zinc-600 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+                className={tb.chip}
                 title="Sample the wall color behind the panel"
               >
                 Match wall
               </button>
-              <label className="flex items-center gap-1 text-sm text-zinc-300">
+              <label className={tb.labelTight}>
                 W (in)
                 <input
                   type="number"
@@ -1102,10 +1240,10 @@ export default function DesignStep({
                     if (inches > 0)
                       commit(selected.id, { width: inches / ipp });
                   }}
-                  className="w-16 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                  className={`w-16 ${tb.num}`}
                 />
               </label>
-              <label className="flex items-center gap-1 text-sm text-zinc-300">
+              <label className={tb.labelTight}>
                 H (in)
                 <input
                   type="number"
@@ -1117,7 +1255,7 @@ export default function DesignStep({
                     if (inches > 0)
                       commit(selected.id, { height: inches / ipp });
                   }}
-                  className="w-16 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                  className={`w-16 ${tb.num}`}
                 />
               </label>
             </>
@@ -1129,7 +1267,7 @@ export default function DesignStep({
                 commit(selected.id, { lighting: e.target.value as Lighting })
               }
               title="Lighting"
-              className="rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-2 text-sm text-zinc-100"
+              className={tb.select}
             >
               {LIGHTING_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -1139,7 +1277,7 @@ export default function DesignStep({
             </select>
           )}
           {showAdvanced && selected && selected.kind !== "panel" && (selected.lighting ?? "front") !== "none" && (
-            <label className="flex items-center gap-2 text-sm text-zinc-300">
+            <label className={tb.label}>
               LED
               <input
                 type="color"
@@ -1154,7 +1292,7 @@ export default function DesignStep({
                 onChange={(e) =>
                   commit(selected.id, { ledColor: e.target.value })
                 }
-                className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                className={tb.color}
               />
             </label>
           )}
@@ -1181,12 +1319,13 @@ export default function DesignStep({
                   );
                 }}
                 title="Sign construction"
-                className="rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-2 text-sm text-zinc-100"
+                className={tb.select}
               >
                 <option value="letters">Channel letters</option>
                 <option value="cabinet">Cabinet sign</option>
               </select>
               <FontPicker
+                customerMode={customerMode}
                 value={selected.fontFamily ?? SIGN_FONT}
                 onPick={async (family, googleName) => {
                   // wait for a webfont before measuring, so cap-height (and
@@ -1202,17 +1341,17 @@ export default function DesignStep({
                   });
                 }}
               />
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 Face
                 <input
                   type="color"
                   value={selected.fill}
                   onChange={(e) => commit(selected.id, { fill: e.target.value })}
-                  className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                  className={tb.color}
                 />
               </label>
               {selected.signStyle === "cabinet" && (
-                <label className="flex items-center gap-2 text-sm text-zinc-300">
+                <label className={tb.label}>
                   Box
                   <input
                     type="color"
@@ -1221,12 +1360,12 @@ export default function DesignStep({
                     onChange={(e) =>
                       commit(selected.id, { backerColor: e.target.value })
                     }
-                    className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                    className={tb.color}
                   />
                 </label>
               )}
               {selected.signStyle !== "cabinet" && (
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 Trim
                 <input
                   type="color"
@@ -1235,12 +1374,12 @@ export default function DesignStep({
                   onChange={(e) =>
                     commit(selected.id, { trimColor: e.target.value })
                   }
-                  className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                  className={tb.color}
                 />
               </label>
               )}
               {selected.signStyle !== "cabinet" && (
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 <input
                   type="checkbox"
                   checked={!!selected.raceway}
@@ -1252,7 +1391,7 @@ export default function DesignStep({
                         : selected.racewayColor,
                     })
                   }
-                  className="h-4 w-4 accent-amber-400"
+                  className={tb.check}
                 />
                 Raceway
               </label>
@@ -1266,7 +1405,7 @@ export default function DesignStep({
                     onChange={(e) =>
                       commit(selected.id, { racewayColor: e.target.value })
                     }
-                    className="h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900"
+                    className={tb.color}
                   />
                   <button
                     onClick={() =>
@@ -1274,14 +1413,14 @@ export default function DesignStep({
                         racewayColor: sampleWallColor(selected),
                       })
                     }
-                    className="rounded-lg border border-zinc-600 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+                    className={tb.chip}
                     title="Re-sample the wall color behind the letters"
                   >
                     Match wall
                   </button>
                 </>
               )}
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 Letter height (in)
                 <input
                   type="number"
@@ -1299,7 +1438,7 @@ export default function DesignStep({
                         ),
                       });
                   }}
-                  className="w-20 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                  className={`w-20 ${tb.num}`}
                 />
               </label>
             </>
@@ -1307,7 +1446,7 @@ export default function DesignStep({
           {showAdvanced && selected?.kind === "logo" && (
             <>
               {selected.processedSrc && (
-                <label className="flex items-center gap-2 text-sm text-zinc-300">
+                <label className={tb.label}>
                   <input
                     type="checkbox"
                     checked={!!selected.bgRemoved}
@@ -1319,12 +1458,12 @@ export default function DesignStep({
                           : selected.originalSrc ?? selected.src,
                       })
                     }
-                    className="h-4 w-4 accent-amber-400"
+                    className={tb.check}
                   />
                   Clear background
                 </label>
               )}
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 Height (in)
                 <input
                   type="number"
@@ -1341,11 +1480,11 @@ export default function DesignStep({
                       });
                     }
                   }}
-                  className="w-20 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                  className={`w-20 ${tb.num}`}
                 />
               </label>
               {!customerMode && (
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className={tb.label}>
                 <input
                   type="checkbox"
                   checked={!!selected.priceAsLetters}
@@ -1356,14 +1495,14 @@ export default function DesignStep({
                       letterHeightRatio: selected.letterHeightRatio ?? 0.6,
                     })
                   }
-                  className="h-4 w-4 accent-amber-400"
+                  className={tb.check}
                 />
                 Built as channel letters
               </label>
               )}
               {selected.priceAsLetters && (
                 <>
-                  <label className="flex items-center gap-1 text-sm text-zinc-300">
+                  <label className={tb.labelTight}>
                     Letters
                     <input
                       type="number"
@@ -1374,10 +1513,10 @@ export default function DesignStep({
                           letterCount: Math.max(1, Number(e.target.value)),
                         })
                       }
-                      className="w-16 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                      className={`w-16 ${tb.num}`}
                     />
                   </label>
-                  <label className="flex items-center gap-1 text-sm text-zinc-300">
+                  <label className={tb.labelTight}>
                     Letter ht (in)
                     <input
                       type="number"
@@ -1398,7 +1537,7 @@ export default function DesignStep({
                               inches / (selected.height * ipp),
                           });
                       }}
-                      className="w-16 rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100"
+                      className={`w-16 ${tb.num}`}
                     />
                   </label>
                 </>
@@ -1412,27 +1551,51 @@ export default function DesignStep({
                 setElements((els) => els.filter((el) => el.id !== selected.id));
                 setSelectedId(null);
               }}
-              className="rounded-lg border border-red-500/50 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"
+              className={tb.del}
             >
               Delete
             </button>
           )}
           <div className="grow" />
           {customerMode && !night && (
-            <span className="text-xs text-blue-300">See it lit up at night →</span>
+            <span className="hidden text-sm font-medium text-blue-600 sm:inline">
+              See it lit up at night →
+            </span>
           )}
-          <div className="flex overflow-hidden rounded-lg border border-zinc-600 text-sm">
+          <div
+            className={`flex overflow-hidden text-sm ${
+              customerMode
+                ? "rounded-xl border border-zinc-300 bg-white p-0.5"
+                : "rounded-lg border border-zinc-600"
+            }`}
+          >
             <button
               onClick={() => setNight(false)}
-              className={`px-3 py-2 ${!night ? "bg-amber-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`}
+              className={`flex items-center gap-1.5 ${
+                customerMode
+                  ? `rounded-lg px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                      !night
+                        ? "bg-zinc-900 text-white"
+                        : "text-zinc-500 hover:text-zinc-900"
+                    }`
+                  : `px-3 py-2 ${!night ? "bg-amber-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`
+              }`}
             >
-              ☀ Day
+              <StrokeIcon d={ICON.sun} className="h-4 w-4" /> Day
             </button>
             <button
               onClick={() => setNight(true)}
-              className={`px-3 py-2 ${night ? "bg-indigo-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`}
+              className={`flex items-center gap-1.5 ${
+                customerMode
+                  ? `rounded-lg px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                      night
+                        ? "bg-blue-600 text-white"
+                        : "text-zinc-500 hover:text-zinc-900"
+                    }`
+                  : `px-3 py-2 ${night ? "bg-indigo-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`
+              }`}
             >
-              ☾ Night
+              <StrokeIcon d={ICON.moon} className="h-4 w-4" /> Night
             </button>
           </div>
           {!customerMode && (
@@ -1464,87 +1627,107 @@ export default function DesignStep({
             <button
               onClick={() => {
                 if (customerEmail) {
-                  void makeProposal(customerEmail, true);
+                  void sendProposalTo(customerEmail);
                   return;
                 }
-                const to = window
-                  .prompt(
-                    "Where should we email your mockup and budget range?"
-                  )
-                  ?.trim();
-                if (!to) return;
-                if (!/.+@.+\..+/.test(to)) {
-                  alert("That doesn't look like an email address — try again.");
-                  return;
-                }
-                onCustomerEmail?.(to);
-                void makeProposal(to, true);
+                setEmailDraft("");
+                setEmailErr(null);
+                setEmailAsk(true);
               }}
-              disabled={elements.length === 0}
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-40"
+              disabled={elements.length === 0 || sending}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40"
             >
-              ✉ Email my proposal
+              {sending ? "Sending…" : "Email my proposal"}
             </button>
           )}
         </div>
 
         {customerMode && lookTarget && (
-          <div className="mb-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-200">
-                Pick a look — tap to try it on your building
+          <div className="mb-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-base font-bold tracking-tight text-zinc-900">
+                Pick a look
+                <span className="ml-2 text-sm font-normal text-zinc-500">
+                  tap to try it on your building
+                </span>
               </span>
               <button
                 onClick={() => setFineTune((f) => !f)}
-                className="text-xs text-blue-400 hover:text-blue-300"
+                className="rounded text-sm font-medium text-blue-600 transition-colors hover:text-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
               >
-                {fineTune ? "Hide fine-tune ▲" : "Fine-tune ▼"}
+                {fineTune ? "Hide fine-tune" : "Fine-tune"}
               </button>
             </div>
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            <div className="mt-2.5 flex gap-3 overflow-x-auto pb-2">
               {SIGN_LOOKS.map((look) => {
                 const active = lookIsActive(lookTarget, look);
                 return (
                   <button
                     key={look.id}
                     onClick={() => applyLook(look)}
-                    className={`w-36 shrink-0 rounded-xl border p-2 text-left transition-colors ${
+                    className={`w-48 shrink-0 rounded-2xl bg-white p-2.5 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
                       active
-                        ? "border-blue-400 bg-blue-500/10"
-                        : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
+                        ? "shadow-[0_2px_6px_rgba(37,99,235,0.15),0_12px_28px_-12px_rgba(37,99,235,0.35)] ring-2 ring-blue-600"
+                        : "shadow-[0_1px_2px_rgba(24,24,27,0.05),0_8px_20px_-12px_rgba(24,24,27,0.2)] ring-1 ring-zinc-200 hover:ring-zinc-300"
                     }`}
                   >
                     <div
-                      className="flex h-12 items-center justify-center overflow-hidden rounded-lg"
+                      className="flex h-20 items-center justify-center overflow-hidden rounded-xl"
                       style={{
                         background:
-                          "linear-gradient(180deg, #101014 0%, #1c1c22 100%)",
+                          "linear-gradient(180deg, #101014 0%, #23232a 100%)",
                       }}
                     >
                       <span
-                        className="max-w-full truncate px-2 py-1 text-base font-bold"
-                        style={{ ...look.preview.plate, ...look.preview.text }}
+                        className="max-w-full whitespace-nowrap px-2.5 py-1 font-bold"
+                        style={{
+                          ...look.preview.plate,
+                          ...look.preview.text,
+                          // scale down instead of ellipsizing the customer's name
+                          fontSize: `${Math.max(
+                            11,
+                            Math.min(
+                              19,
+                              Math.round(
+                                175 / (lookTarget.text || "Your Sign").length
+                              )
+                            )
+                          )}px`,
+                        }}
                       >
                         {lookTarget.text || "Your Sign"}
                       </span>
                     </div>
-                    <div className="mt-1.5 text-xs font-semibold text-zinc-100">
+                    <div className="mt-2 flex items-center gap-1.5 px-0.5 text-sm font-semibold text-zinc-900">
                       {look.name}
+                      {active && (
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 16 16"
+                          className="h-4 w-4 text-blue-600"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
                     </div>
-                    <div className="text-[11px] leading-tight text-zinc-400">
+                    <div className="px-0.5 text-xs leading-snug text-zinc-500">
                       {look.blurb}
                     </div>
                   </button>
                 );
               })}
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-sm text-zinc-500">
               Nothing is final — play around. Prefer we handle it? We&apos;ll
               design it together live on a quick call.
             </p>
           </div>
         )}
 
+        <div className={customerMode ? "flex justify-center" : ""}>
         <div className="relative inline-block">
           <Stage
             ref={stageRef}
@@ -1560,7 +1743,11 @@ export default function DesignStep({
                 setView((v) => ({ ...v, x: e.target.x(), y: e.target.y() }));
             }}
             onWheel={onWheel}
-            className="overflow-hidden rounded-xl bg-zinc-950"
+            className={
+              customerMode
+                ? "overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
+                : "overflow-hidden rounded-xl bg-zinc-950"
+            }
             onMouseDown={(e) => {
               if (e.target === e.target.getStage()) setSelectedId(null);
             }}
@@ -1667,12 +1854,15 @@ export default function DesignStep({
                     scaleX={inv}
                     scaleY={inv}
                   >
-                    <Tag fill="#fbbf24" cornerRadius={3} />
+                    <Tag
+                      fill={customerMode ? "#2563eb" : "#fbbf24"}
+                      cornerRadius={3}
+                    />
                     <KText
                       text={formatFeetInches(h)}
                       fontSize={12}
                       fontStyle="bold"
-                      fill="#18181b"
+                      fill={customerMode ? "#ffffff" : "#18181b"}
                       padding={4}
                     />
                   </Label>
@@ -1691,9 +1881,9 @@ export default function DesignStep({
                   "bottom-left",
                   "bottom-right",
                 ]}
-                anchorFill="#fbbf24"
-                anchorStroke="#18181b"
-                borderStroke="#fbbf24"
+                anchorFill={customerMode ? "#ffffff" : "#fbbf24"}
+                anchorStroke={customerMode ? "#2563eb" : "#18181b"}
+                borderStroke={customerMode ? "#2563eb" : "#fbbf24"}
                 rotateEnabled
               />
             </Layer>
@@ -1729,9 +1919,21 @@ export default function DesignStep({
             </button>
           </div>
         </div>
+        </div>
 
-        <div className="mt-2 flex items-center justify-between text-sm text-zinc-400">
-          <button onClick={onBack} className="underline hover:text-zinc-200">
+        <div
+          className={`mt-2 flex items-center justify-between text-sm ${
+            customerMode ? "text-zinc-600" : "text-zinc-400"
+          }`}
+        >
+          <button
+            onClick={onBack}
+            className={
+              customerMode
+                ? "font-medium underline underline-offset-2 hover:text-zinc-900"
+                : "underline hover:text-zinc-200"
+            }
+          >
             ← Back to measurement
           </button>
           {selectedDims && (
@@ -1747,6 +1949,68 @@ export default function DesignStep({
       </div>
 
       {sidebar}
+
+      {emailAsk && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-[0_2px_8px_rgba(24,24,27,0.08),0_24px_64px_-16px_rgba(24,24,27,0.35)]">
+            <h2 className="text-xl font-extrabold tracking-tight text-zinc-900">
+              Where should we send it?
+            </h2>
+            <p className="mt-1.5 text-sm leading-6 text-zinc-600">
+              You&apos;ll get your mockup — day and night — plus the budget
+              range, in one email.
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const to = emailDraft.trim();
+                if (!/.+@.+\..+/.test(to)) {
+                  setEmailErr(
+                    "That doesn't look like an email address — check for typos."
+                  );
+                  return;
+                }
+                setEmailErr(null);
+                onCustomerEmail?.(to);
+                void sendProposalTo(to);
+              }}
+            >
+              <input
+                autoFocus
+                type="email"
+                value={emailDraft}
+                onChange={(e) => setEmailDraft(e.target.value)}
+                placeholder="you@yourbusiness.com"
+                className="mt-4 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+              />
+              {emailErr && (
+                <p className="mt-2 text-sm font-medium leading-5 text-zinc-900">
+                  {emailErr}
+                </p>
+              )}
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="flex-1 rounded-xl bg-blue-600 py-2.5 font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50"
+                >
+                  {sending ? "Sending…" : "Send my proposal"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmailAsk(false)}
+                  className="rounded-xl px-4 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+            <p className="mt-3 text-xs text-zinc-500">
+              No spam, no signup — just your proposal.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

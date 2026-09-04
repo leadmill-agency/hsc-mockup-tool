@@ -1,12 +1,12 @@
 // Customer-mode "Pick a look" presets (PRD non-designer UX): each card bundles
 // font + lighting + colors so customers react to finished styles instead of
-// decoding sign-industry controls. System font stacks only — cards and canvas
-// render instantly with no webfont round-trip.
+// decoding sign-industry controls. Looks carry real sign-lettering webfonts
+// (loaded via loadGoogleFont before applying, so cap-height pricing measures
+// the actual glyphs); system stacks remain only as fallbacks.
 
 import type { CSSProperties } from "react";
 import {
   fontSizeForLetterHeight,
-  SIGN_FONT,
   TextElement,
   textLetterHeightInches,
 } from "@/lib/types";
@@ -15,6 +15,8 @@ export interface SignLook {
   id: string;
   name: string;
   blurb: string;
+  /** Google font to load before this look applies (and for card previews). */
+  googleName?: string;
   /** Style fields applied to a text element (fontSize handled separately). */
   patch: Pick<
     TextElement,
@@ -29,13 +31,18 @@ export interface SignLook {
   };
 }
 
+/** The customer default: what the auto-placed first sign wears. */
+export const DEFAULT_LOOK_FONT = "'Oswald', 'Arial Narrow', sans-serif";
+export const DEFAULT_LOOK_GOOGLE = "Oswald";
+
 export const SIGN_LOOKS: SignLook[] = [
   {
     id: "classic",
     name: "Classic Glow",
     blurb: "White letters that light up at night",
+    googleName: "Oswald",
     patch: {
-      fontFamily: SIGN_FONT,
+      fontFamily: DEFAULT_LOOK_FONT,
       fill: "#f5f5f5",
       trimColor: "#26221f",
       lighting: "front",
@@ -44,7 +51,7 @@ export const SIGN_LOOKS: SignLook[] = [
     },
     preview: {
       text: {
-        fontFamily: SIGN_FONT,
+        fontFamily: DEFAULT_LOOK_FONT,
         color: "#fafafa",
         textShadow: "0 0 10px rgba(255,255,255,0.9), 0 0 22px rgba(255,255,255,0.45)",
       },
@@ -75,8 +82,9 @@ export const SIGN_LOOKS: SignLook[] = [
     id: "blue",
     name: "Bold Blue",
     blurb: "Blue letters with a bright blue glow",
+    googleName: "Archivo",
     patch: {
-      fontFamily: SIGN_FONT,
+      fontFamily: "'Archivo', Arial, sans-serif",
       fill: "#2563eb",
       trimColor: "#1e3a8a",
       lighting: "front",
@@ -85,7 +93,7 @@ export const SIGN_LOOKS: SignLook[] = [
     },
     preview: {
       text: {
-        fontFamily: SIGN_FONT,
+        fontFamily: "'Archivo', Arial, sans-serif",
         color: "#3b82f6",
         textShadow: "0 0 10px rgba(96,165,250,0.95), 0 0 24px rgba(59,130,246,0.55)",
       },
@@ -95,8 +103,9 @@ export const SIGN_LOOKS: SignLook[] = [
     id: "script",
     name: "Signature",
     blurb: "Handwritten style with a warm halo",
+    googleName: "Dancing Script",
     patch: {
-      fontFamily: "'Snell Roundhand', 'Brush Script MT', cursive",
+      fontFamily: "'Dancing Script', 'Brush Script MT', cursive",
       fill: "#f5f5f5",
       trimColor: "#26221f",
       lighting: "halo",
@@ -105,7 +114,7 @@ export const SIGN_LOOKS: SignLook[] = [
     },
     preview: {
       text: {
-        fontFamily: "'Snell Roundhand', 'Brush Script MT', cursive",
+        fontFamily: "'Dancing Script', 'Brush Script MT', cursive",
         color: "#fafafa",
         textShadow:
           "0 0 12px rgba(255,243,214,0.9), 0 0 26px rgba(255,243,214,0.5)",
@@ -116,8 +125,9 @@ export const SIGN_LOOKS: SignLook[] = [
     id: "box",
     name: "Lightbox",
     blurb: "A lit white box sign — clean and simple",
+    googleName: "Barlow Condensed",
     patch: {
-      fontFamily: SIGN_FONT,
+      fontFamily: "'Barlow Condensed', 'Arial Narrow', sans-serif",
       fill: "#1c1917",
       lighting: "front",
       ledColor: "#ffffff",
@@ -125,7 +135,10 @@ export const SIGN_LOOKS: SignLook[] = [
       backerColor: "#f7f5f0",
     },
     preview: {
-      text: { fontFamily: SIGN_FONT, color: "#1c1917" },
+      text: {
+        fontFamily: "'Barlow Condensed', 'Arial Narrow', sans-serif",
+        color: "#1c1917",
+      },
       plate: {
         background: "#f7f5f0",
         borderRadius: 4,
@@ -136,7 +149,8 @@ export const SIGN_LOOKS: SignLook[] = [
 ];
 
 /** The patch that restyles `el` into `look` while keeping its physical
- *  letter height (and therefore its price) unchanged. */
+ *  letter height (and therefore its price) unchanged. Call after the look's
+ *  webfont has loaded (and its cap-height cache invalidated). */
 export function lookPatch(
   el: TextElement,
   look: SignLook,
