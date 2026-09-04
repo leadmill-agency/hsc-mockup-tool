@@ -2057,11 +2057,11 @@ export default function DesignStep({
                     ) : (
                       <label className="block">
                         <div className="mb-1 text-sm font-medium text-zinc-700">
-                          Edge color
+                          Letter sides
                         </div>
                         <input
                           type="color"
-                          title="The trim around each letter"
+                          title="The color of each letter's metal sides (the 'returns')"
                           value={selected.trimColor ?? "#26221f"}
                           onChange={(e) =>
                             commit(selected.id, { trimColor: e.target.value })
@@ -2110,43 +2110,41 @@ export default function DesignStep({
                   </div>
                 </div>
                 {selected.kind === "text" && (
-                  <div>
-                    <div className="mb-1 text-sm font-medium text-zinc-700">
-                      Sign type
+                  <div className="flex gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 text-sm font-medium text-zinc-700">
+                        Sign type
+                      </div>
+                      <select
+                        value={selected.signStyle ?? "letters"}
+                        onChange={(e) => {
+                          const v = e.target.value as "letters" | "cabinet";
+                          commit(
+                            selected.id,
+                            v === "cabinet"
+                              ? {
+                                  signStyle: v,
+                                  raceway: false,
+                                  backer: false,
+                                  backerColor: "#f7f5f0",
+                                  fill:
+                                    selected.fill === "#f5f5f5"
+                                      ? "#1c1917"
+                                      : selected.fill,
+                                }
+                              : { signStyle: v, backerColor: "#3f3c38" }
+                          );
+                        }}
+                        className={`w-full ${tb.select}`}
+                      >
+                        <option value="letters">Lit letters</option>
+                        <option value="cabinet">Lit box sign</option>
+                      </select>
                     </div>
-                    <select
-                      value={selected.signStyle ?? "letters"}
-                      onChange={(e) => {
-                        const v = e.target.value as "letters" | "cabinet";
-                        commit(
-                          selected.id,
-                          v === "cabinet"
-                            ? {
-                                signStyle: v,
-                                raceway: false,
-                                backer: false,
-                                backerColor: "#f7f5f0",
-                                fill:
-                                  selected.fill === "#f5f5f5"
-                                    ? "#1c1917"
-                                    : selected.fill,
-                              }
-                            : { signStyle: v, backerColor: "#3f3c38" }
-                        );
-                      }}
-                      className={`w-full ${tb.select}`}
-                    >
-                      <option value="letters">Individual lit letters</option>
-                      <option value="cabinet">Lit box sign</option>
-                    </select>
-                  </div>
-                )}
-                {selected.kind === "text" && (
-                  <label className="block">
-                    <div className="mb-1 text-sm font-medium text-zinc-700">
-                      Letter height
-                    </div>
-                    <div className="flex items-center gap-2">
+                    <label className="block shrink-0">
+                      <div className="mb-1 text-sm font-medium text-zinc-700">
+                        Height (in)
+                      </div>
                       <input
                         type="number"
                         min={1}
@@ -2165,11 +2163,60 @@ export default function DesignStep({
                               ),
                             });
                         }}
-                        className={`w-24 ${tb.num}`}
+                        className={`w-20 ${tb.num}`}
                       />
-                      <span className="text-sm text-zinc-500">inches tall</span>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
+                )}
+                {selected.kind === "text" && selected.signStyle !== "cabinet" && (
+                  <div>
+                    <label
+                      className={tb.label}
+                      title="A slim painted box behind the letters that hides the wiring"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!selected.raceway}
+                        onChange={(e) =>
+                          commit(selected.id, {
+                            raceway: e.target.checked,
+                            racewayColor: e.target.checked
+                              ? selected.racewayColor ??
+                                sampleWallColor(selected)
+                              : selected.racewayColor,
+                          })
+                        }
+                        className={tb.check}
+                      />
+                      Mount on a wireway
+                    </label>
+                    {selected.raceway && (
+                      <div className="mt-2 flex items-center gap-2 pl-6">
+                        <input
+                          type="color"
+                          title="Wireway color"
+                          value={selected.racewayColor ?? "#3f3c38"}
+                          onChange={(e) =>
+                            commit(selected.id, {
+                              racewayColor: e.target.value,
+                            })
+                          }
+                          className={tb.color}
+                        />
+                        <button
+                          onClick={() =>
+                            commit(selected.id, {
+                              racewayColor: sampleWallColor(selected),
+                            })
+                          }
+                          className={tb.chip}
+                          title="Paint it the same color as your wall so it disappears"
+                        >
+                          Match my wall
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
                 {selected.kind === "logo" && (
                   <label className="block">
