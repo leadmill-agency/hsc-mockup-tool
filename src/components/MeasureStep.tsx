@@ -29,6 +29,8 @@ interface Props {
   onChange: (m: Measurement) => void;
   onNext: () => void;
   onBack: () => void;
+  /** Friendlier copy and brand accents for the customer link. */
+  customerMode?: boolean;
 }
 
 const MAX_W = 920;
@@ -67,6 +69,7 @@ export default function MeasureStep({
   onChange,
   onNext,
   onBack,
+  customerMode,
 }: Props) {
   const fitScale = Math.min(
     MAX_W / image.naturalWidth,
@@ -272,17 +275,36 @@ export default function MeasureStep({
       <div className="w-full shrink-0 space-y-4 lg:w-80">
         <div>
           <h2 className="text-lg font-semibold text-zinc-100">
-            Mark what you know
+            {customerMode
+              ? "About how wide is this storefront?"
+              : "Mark what you know"}
           </h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Drag the amber dots across the storefront and enter its width. Drag
-            the green line onto a door for a free second check — more
-            references, better accuracy.
-          </p>
-          <p className="mt-2 text-xs text-zinc-500">
-            Scroll to zoom, drag the photo to pan. References must be on the
-            same wall as the sign.
-          </p>
+          {customerMode ? (
+            <>
+              <p className="mt-1 text-sm text-zinc-400">
+                Drag the yellow dots to each end of your building and type your
+                best guess in feet. Not sure? Drag the green line onto your
+                door — most doors are 7 ft, and we&apos;ll work it out from
+                there.
+              </p>
+              <p className="mt-2 text-xs text-zinc-500">
+                A rough guess is fine — we confirm exact measurements before
+                anything is built.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-zinc-400">
+                Drag the amber dots across the storefront and enter its width.
+                Drag the green line onto a door for a free second check — more
+                references, better accuracy.
+              </p>
+              <p className="mt-2 text-xs text-zinc-500">
+                Scroll to zoom, drag the photo to pan. References must be on
+                the same wall as the sign.
+              </p>
+            </>
+          )}
         </div>
 
         {measurement.references.map((r) => {
@@ -390,7 +412,11 @@ export default function MeasureStep({
           <button
             onClick={onNext}
             disabled={!ipp}
-            className="rounded-lg bg-amber-400 px-5 py-2 font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-50"
+            className={`rounded-lg px-5 py-2 font-semibold disabled:opacity-50 ${
+              customerMode
+                ? "bg-blue-500 text-white hover:bg-blue-400"
+                : "bg-amber-400 text-zinc-950 hover:bg-amber-300"
+            }`}
           >
             Continue to design
           </button>

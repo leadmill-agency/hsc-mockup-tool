@@ -42,6 +42,7 @@ import { buildProposalHtml } from "@/lib/proposal";
 import FontPicker from "@/components/FontPicker";
 import { elementsToPieces } from "@/components/PricePanel";
 import { uploadAsset } from "@/lib/cloud";
+import { lookPatch, SIGN_LOOKS, SignLook } from "@/lib/looks";
 
 interface Props {
   image: HTMLImageElement;
@@ -57,6 +58,11 @@ interface Props {
   pricingCfg: PricingConfig;
   customerMode?: boolean;
   customerEmail?: string;
+  /** Customer mode: auto-place a finished sign with this name on first visit. */
+  businessName?: string;
+  /** Y (image px) of the storefront width line — the auto-placed sign sits
+   *  just above it, on the building instead of in the sky. */
+  signAnchorY?: number;
   onProposalSent?: (to: string) => void;
   onBack: () => void;
   sidebar: ReactNode;
@@ -346,6 +352,8 @@ export default function DesignStep({
   pricingCfg,
   customerMode,
   customerEmail,
+  businessName,
+  signAnchorY,
   onProposalSent,
   onBack,
   sidebar,
@@ -366,9 +374,51 @@ export default function DesignStep({
   const [showDims, setShowDims] = useState(true);
   const [view, setView] = useState<View>({ z: 1, x: 0, y: 0 });
   const [night, setNight] = useState(false);
+  // Customer mode: jargon controls hide behind this toggle (PRD non-designer UX)
+  const [fineTune, setFineTune] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const selected = elements.find((e) => e.id === selectedId) ?? null;
+  const showAdvanced = !customerMode || fineTune;
+
+  // Customer mode: never greet them with a blank canvas — the first time they
+  // reach this step, drop a finished sign with their business name, centered
+  // and sized to the storefront. Reacting beats creating.
+  const autoAdded = useRef(false);
+  useEffect(() => {
+    if (!customerMode || autoAdded.current || elements.length > 0) return;
+    const text = (businessName ?? "").trim();
+    if (!text) return;
+    autoAdded.current = true;
+    const family = SIGN_FONT;
+    let fontSize = fontSizeForLetterHeight(18, ipp, family);
+    const maxW = image.naturalWidth * 0.7;
+    const w = measureTextWidth(text, fontSize, family);
+    if (w > maxW) fontSize *= maxW / w;
+    fontSize = Math.max(fontSize, fontSizeForLetterHeight(8, ipp, family));
+    const finalW = measureTextWidth(text, fontSize, family);
+    const anchor = signAnchorY ?? image.naturalHeight * 0.4;
+    const el: TextElement = {
+      id: `t${Date.now()}`,
+      kind: "text",
+      text,
+      x: Math.max(0, (image.naturalWidth - finalW) / 2),
+      y: Math.max(
+        image.naturalHeight * 0.02,
+        anchor - image.naturalHeight * 0.03 - fontSize
+      ),
+      fontSize,
+      fill: "#f5f5f5",
+      trimColor: "#26221f",
+      lighting: "front",
+      ledColor: "#ffffff",
+      fontFamily: family,
+      rotation: 0,
+    };
+    setElements((els) => (els.length ? els : [...els, el]));
+    setSelectedId(el.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerMode, businessName, elements.length]);
 
   useEffect(() => {
     const tr = trRef.current;
@@ -931,6 +981,22 @@ export default function DesignStep({
         : { w: selected.width * ipp, h: selected.height * ipp }
       : null);
 
+  // "Pick a look" applies to the selected text element, else the first one.
+  const lookTarget =
+    selected?.kind === "text"
+      ? selected
+      : (elements.find((e): e is TextElement => e.kind === "text") ?? null);
+  const lookIsActive = (el: TextElement, look: SignLook): boolean =>
+    (el.fontFamily ?? SIGN_FONT) === look.patch.fontFamily &&
+    (el.lighting ?? "front") === look.patch.lighting &&
+    (el.signStyle ?? "letters") === look.patch.signStyle &&
+    el.fill === look.patch.fill;
+  const applyLook = (look: SignLook) => {
+    if (!lookTarget) return;
+    commit(lookTarget.id, lookPatch(lookTarget, look, ipp));
+    setSelectedId(lookTarget.id);
+  };
+
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
       <div className="flex-1">
@@ -976,13 +1042,15 @@ export default function DesignStep({
           >
             Upload logo
           </button>
-          <button
-            onClick={addPanel}
-            title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
-            className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600"
-          >
-            Add panel
-          </button>
+          {showAdvanced && (
+            <button
+              onClick={addPanel}
+              title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
+              className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600"
+            >
+              Add panel
+            </button>
+          )}
           <input
             ref={logoInputRef}
             type="file"
@@ -990,7 +1058,7 @@ export default function DesignStep({
             className="hidden"
             onChange={(e) => addLogo(e.target.files?.[0])}
           />
-          {selected?.kind === "panel" && (
+          {showAdvanced && selected?.kind === "panel" && (
             <>
               <label className="flex items-center gap-2 text-sm text-zinc-300">
                 Panel
@@ -1050,7 +1118,7 @@ export default function DesignStep({
               </label>
             </>
           )}
-          {selected && selected.kind !== "panel" && (
+          {showAdvanced && selected && selected.kind !== "panel" && (
             <select
               value={selected.lighting ?? "front"}
               onChange={(e) =>
@@ -1066,7 +1134,7 @@ export default function DesignStep({
               ))}
             </select>
           )}
-          {selected && selected.kind !== "panel" && (selected.lighting ?? "front") !== "none" && (
+          {showAdvanced && selected && selected.kind !== "panel" && (selected.lighting ?? "front") !== "none" && (
             <label className="flex items-center gap-2 text-sm text-zinc-300">
               LED
               <input
@@ -1086,7 +1154,7 @@ export default function DesignStep({
               />
             </label>
           )}
-          {selected?.kind === "text" && (
+          {showAdvanced && selected?.kind === "text" && (
             <>
               <select
                 value={selected.signStyle ?? "letters"}
@@ -1232,7 +1300,7 @@ export default function DesignStep({
               </label>
             </>
           )}
-          {selected?.kind === "logo" && (
+          {showAdvanced && selected?.kind === "logo" && (
             <>
               {selected.processedSrc && (
                 <label className="flex items-center gap-2 text-sm text-zinc-300">
@@ -1346,6 +1414,9 @@ export default function DesignStep({
             </button>
           )}
           <div className="grow" />
+          {customerMode && !night && (
+            <span className="text-xs text-blue-300">See it lit up at night →</span>
+          )}
           <div className="flex overflow-hidden rounded-lg border border-zinc-600 text-sm">
             <button
               onClick={() => setNight(false)}
@@ -1395,12 +1466,69 @@ export default function DesignStep({
                     )
               }
               disabled={elements.length === 0}
-              className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
+              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400 disabled:opacity-40"
             >
               ✉ Email my proposal
             </button>
           )}
         </div>
+
+        {customerMode && lookTarget && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-zinc-200">
+                Pick a look — tap to try it on your building
+              </span>
+              <button
+                onClick={() => setFineTune((f) => !f)}
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                {fineTune ? "Hide fine-tune ▲" : "Fine-tune ▼"}
+              </button>
+            </div>
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+              {SIGN_LOOKS.map((look) => {
+                const active = lookIsActive(lookTarget, look);
+                return (
+                  <button
+                    key={look.id}
+                    onClick={() => applyLook(look)}
+                    className={`w-36 shrink-0 rounded-xl border p-2 text-left transition-colors ${
+                      active
+                        ? "border-blue-400 bg-blue-500/10"
+                        : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
+                    }`}
+                  >
+                    <div
+                      className="flex h-12 items-center justify-center overflow-hidden rounded-lg"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, #101014 0%, #1c1c22 100%)",
+                      }}
+                    >
+                      <span
+                        className="max-w-full truncate px-2 py-1 text-base font-bold"
+                        style={{ ...look.preview.plate, ...look.preview.text }}
+                      >
+                        {lookTarget.text || "Your Sign"}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 text-xs font-semibold text-zinc-100">
+                      {look.name}
+                    </div>
+                    <div className="text-[11px] leading-tight text-zinc-400">
+                      {look.blurb}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              Nothing is final — play around. Prefer we handle it? We&apos;ll
+              design it together live on your call.
+            </p>
+          </div>
+        )}
 
         <div className="relative inline-block">
           <Stage

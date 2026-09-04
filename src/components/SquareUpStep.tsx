@@ -8,6 +8,8 @@ interface Props {
   initialParams: SquareParams;
   onApply: (corrected: HTMLImageElement, params: SquareParams) => void;
   onReplacePhoto: () => void;
+  /** Friendlier copy and brand accents for the customer link. */
+  customerMode?: boolean;
 }
 
 interface Box {
@@ -38,6 +40,7 @@ export default function SquareUpStep({
   initialParams,
   onApply,
   onReplacePhoto,
+  customerMode,
 }: Props) {
   const [params, setParams] = useState<SquareParams>(initialParams);
   const [baking, setBaking] = useState(false);
@@ -250,11 +253,21 @@ export default function SquareUpStep({
 
       <div className="w-full shrink-0 space-y-5 lg:w-80">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Square up the photo</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Adjust until the sign band is horizontal and the storefront columns
-            are vertical against the grid.
-          </p>
+          <h2 className="text-lg font-semibold text-zinc-100">
+            {customerMode ? "Does the photo look straight?" : "Square up the photo"}
+          </h2>
+          {customerMode ? (
+            <p className="mt-1 text-sm text-zinc-400">
+              If your building looks straight against the grid, just continue.
+              Otherwise nudge the sliders until it lines up — close is good
+              enough.
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-zinc-400">
+              Adjust until the sign band is horizontal and the storefront
+              columns are vertical against the grid.
+            </p>
+          )}
           <p className="mt-2 text-xs text-zinc-500">
             Drag the white corners to crop in on the storefront — a tight crop
             makes measuring and placing the sign much easier.
@@ -286,9 +299,17 @@ export default function SquareUpStep({
           <button
             onClick={apply}
             disabled={baking}
-            className="rounded-lg bg-amber-400 px-5 py-2 font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-50"
+            className={`rounded-lg px-5 py-2 font-semibold disabled:opacity-50 ${
+              customerMode
+                ? "bg-blue-500 text-white hover:bg-blue-400"
+                : "bg-amber-400 text-zinc-950 hover:bg-amber-300"
+            }`}
           >
-            {baking ? "Applying…" : "Apply"}
+            {baking
+              ? "Applying…"
+              : customerMode
+                ? "Looks good — continue"
+                : "Apply"}
           </button>
           <button
             onClick={() => {

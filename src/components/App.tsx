@@ -40,11 +40,11 @@ const DesignStep = dynamic(() => import("@/components/DesignStep"), { ssr: false
 
 type Step = "upload" | "square" | "measure" | "design";
 
-const STEPS: { key: Step; label: string }[] = [
-  { key: "upload", label: "1 · Photo" },
-  { key: "square", label: "2 · Square up" },
-  { key: "measure", label: "3 · Measure" },
-  { key: "design", label: "4 · Design & price" },
+const STEPS: { key: Step; label: string; customerLabel: string }[] = [
+  { key: "upload", label: "1 · Photo", customerLabel: "1 · Photo" },
+  { key: "square", label: "2 · Square up", customerLabel: "2 · Straighten" },
+  { key: "measure", label: "3 · Measure", customerLabel: "3 · Size" },
+  { key: "design", label: "4 · Design & price", customerLabel: "4 · Design" },
 ];
 
 export default function App({
@@ -58,6 +58,8 @@ export default function App({
   );
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [welcomeDone, setWelcomeDone] = useState(false);
+  // asked on the welcome screen; seeds the auto-placed sign in DesignStep
+  const [businessName, setBusinessName] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [projects, setProjects] = useState<ListedProject[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -369,36 +371,45 @@ export default function App({
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-100">
         <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-8">
           <div className="text-lg font-bold">
-            <span className="text-amber-400">Houston</span> Sign Crafters
+            <span className="text-blue-400">Houston</span> Sign Crafters
           </div>
           <h1 className="mt-4 text-2xl font-bold">
             See your new sign on your building — before our call
           </h1>
           {consultTime && (
-            <p className="mt-2 text-sm text-amber-300">
+            <p className="mt-2 text-sm text-blue-300">
               Your consult: {consultTime}
             </p>
           )}
           <p className="mt-4 text-sm leading-6 text-zinc-300">
-            This takes about 5–10 minutes. You&apos;ll get a realistic mockup
-            and budget range emailed to you, and we&apos;ll fine-tune it
-            together on the call.
+            This takes about 5 minutes. Snap a photo of your storefront and
+            we&apos;ll put a finished sign right on it — day and night — with a
+            realistic budget range. We&apos;ll fine-tune it together on the
+            call.
           </p>
-          <div className="mt-4 rounded-lg bg-zinc-950 p-4 text-sm text-zinc-300">
-            <div className="font-medium text-zinc-100">You&apos;ll need:</div>
-            <ul className="mt-1 list-inside list-disc space-y-1">
-              <li>A straight-on photo of your storefront</li>
-              <li>Your logo file — or just your business name</li>
-            </ul>
-          </div>
+          <label className="mt-5 block">
+            <span className="text-sm font-medium text-zinc-100">
+              What&apos;s your business name?
+            </span>
+            <input
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && setWelcomeDone(true)}
+              placeholder="e.g. Peach Cobbler Co"
+              className="mt-2 w-full rounded-lg border border-zinc-600 bg-zinc-950 px-4 py-3 text-zinc-100 placeholder:text-zinc-600 focus:border-blue-400 focus:outline-none"
+            />
+            <span className="mt-1 block text-xs text-zinc-500">
+              We&apos;ll design your first sign for you — you just tweak it.
+            </span>
+          </label>
           <button
             onClick={() => setWelcomeDone(true)}
-            className="mt-6 w-full rounded-lg bg-amber-400 py-3 font-semibold text-zinc-950 hover:bg-amber-300"
+            className="mt-5 w-full rounded-lg bg-blue-500 py-3 font-semibold text-white hover:bg-blue-400"
           >
             Start my design
           </button>
           <p className="mt-3 text-center text-xs text-zinc-500">
-            Measurements and pricing are preliminary — final details are
+            Nothing here is final — play around. Measurements and pricing are
             confirmed on your consultation.
           </p>
         </div>
@@ -505,7 +516,9 @@ export default function App({
             </button>
           )}
           <h1 className="text-lg font-bold tracking-tight">
-            <span className="text-amber-400">{customerMode ? "Houston" : "HSC"}</span>
+            <span className={customerMode ? "text-blue-400" : "text-amber-400"}>
+              {customerMode ? "Houston" : "HSC"}
+            </span>
             {customerMode ? " Sign Crafters" : ""}
           </h1>
           {customerMode ? (
@@ -530,13 +543,15 @@ export default function App({
                 disabled={!reached(s.key)}
                 className={`rounded-full px-3 py-1 transition-colors ${
                   step === s.key
-                    ? "bg-amber-400 font-semibold text-zinc-950"
+                    ? customerMode
+                      ? "bg-blue-500 font-semibold text-white"
+                      : "bg-amber-400 font-semibold text-zinc-950"
                     : reached(s.key)
                       ? "text-zinc-300 hover:bg-zinc-800"
                       : "text-zinc-600"
                 }`}
               >
-                {s.label}
+                {customerMode ? s.customerLabel : s.label}
               </button>
             ))}
           </nav>
@@ -562,6 +577,7 @@ export default function App({
           <SquareUpStep
             image={original}
             initialParams={squareParams}
+            customerMode={customerMode}
             onApply={(img, params) => {
               setSquareParams(params);
               setCorrected(img);
@@ -583,6 +599,7 @@ export default function App({
             onChange={setMeasurement}
             onBack={() => setStep("square")}
             onNext={() => setStep("design")}
+            customerMode={customerMode}
           />
         )}
 
@@ -601,6 +618,11 @@ export default function App({
             pricingCfg={pricingCfg}
             customerMode={customerMode}
             customerEmail={customer?.email}
+            businessName={businessName}
+            signAnchorY={(() => {
+              const w = measurement?.references.find((r) => r.kind === "width");
+              return w ? Math.min(w.y1, w.y2) : undefined;
+            })()}
             onProposalSent={(to) => setSentTo(to)}
             onBack={() => setStep("measure")}
             sidebar={
@@ -627,7 +649,7 @@ export default function App({
               Check <b>{sentTo}</b> for your mockup and budget estimate.
             </p>
             {consultTime && (
-              <p className="mt-2 text-sm text-amber-300">
+              <p className="mt-2 text-sm text-blue-300">
                 We&apos;ll review it together on {consultTime}.
               </p>
             )}

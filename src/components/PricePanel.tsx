@@ -111,11 +111,23 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
         </div>
 
         {pieces.length > 0 && (
-          <div className="mt-4 rounded-lg bg-amber-400/10 p-4 text-center">
-            <div className="text-xs uppercase tracking-wide text-amber-300/80">
+          <div
+            className={`mt-4 rounded-lg p-4 text-center ${
+              customer ? "bg-blue-500/10" : "bg-amber-400/10"
+            }`}
+          >
+            <div
+              className={`text-xs uppercase tracking-wide ${
+                customer ? "text-blue-300/80" : "text-amber-300/80"
+              }`}
+            >
               Estimated project investment
             </div>
-            <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
+            <div
+              className={`mt-1 text-2xl font-bold tabular-nums ${
+                customer ? "text-blue-300" : "text-amber-300"
+              }`}
+            >
               {formatUsd(pricing.low)} – {formatUsd(pricing.high)}
             </div>
             <div className="mt-1 text-xs text-zinc-400">
