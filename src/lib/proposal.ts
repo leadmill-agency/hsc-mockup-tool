@@ -32,6 +32,8 @@ export interface ProposalInput {
   totalLow: number;
   totalHigh: number;
   specs: SpecLine[];
+  /** Color-coded swatch block: the sign's actual colors, shown at the end. */
+  colors?: { label: string; hex: string }[];
 }
 
 const HSC = {
@@ -105,6 +107,26 @@ export function buildProposalHtml(input: ProposalInput): string {
     </div>`
     : "";
 
+  const colorsHtml = input.colors?.length
+    ? `
+    <div class="block">
+      <div class="spec-title">SIGN COLORS</div>
+      <div class="color-chips">
+        ${input.colors
+          .map(
+            (c) => `
+          <div class="chip">
+            <span class="sw" style="background:${esc(c.hex)}"></span>
+            <span><b>${esc(c.label)}</b><span class="hex">${esc(c.hex)}</span></span>
+          </div>`
+          )
+          .join("")}
+      </div>
+      <div class="fine" style="margin-top:8px">Exact paint and vinyl matches
+      confirmed with physical samples before production.</div>
+    </div>`
+    : "";
+
   return `<!doctype html><html><head><meta charset="utf-8">
 <title>Preliminary Sign Concept &amp; Budget Estimate — ${esc(input.projectName)}</title>
 <style>
@@ -155,6 +177,14 @@ export function buildProposalHtml(input: ProposalInput): string {
   .invest .range { font-size: 27px; font-weight: 900; color: ${HSC.blue}; }
   .invest .sub { font-size: 11px; color: #6b6b74; margin-top: 2px; }
   .block { break-inside: avoid; }
+  .color-chips { display: flex; flex-wrap: wrap; gap: 12px 22px; margin-top: 12px; }
+  .chip { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+  .chip .sw { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+    border: 1px solid rgba(17,17,19,0.22);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35), 0 1px 2px rgba(17,17,19,0.12); }
+  .chip b { display: block; }
+  .chip .hex { display: block; color: #6b6b74; font-size: 11.5px;
+    font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; }
   .spec-title { color: #1d4ed8; font-weight: 800; text-decoration: underline;
                 text-transform: uppercase; font-size: 14px; margin: 4px 0 8px; }
   .spec-line { font-size: 13.5px; line-height: 1.7; }
@@ -200,6 +230,7 @@ export function buildProposalHtml(input: ProposalInput): string {
   </div>
 
   ${specsHtml}
+  ${colorsHtml}
 
   <div class="next"><b>Next step:</b> We will review this concept, confirm
   installation conditions, and finalize pricing during your scheduled

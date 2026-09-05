@@ -957,6 +957,56 @@ export default function DesignStep({
 
     const firstText = elements.find((e): e is TextElement => e.kind === "text");
     const trimName = firstText?.trimColor ?? "dark bronze (#26221f)";
+    // Color-coded swatch block: every color the customer actually chose,
+    // labeled per sign when there is more than one text element.
+    const textEls = elements.filter(
+      (e): e is TextElement => e.kind === "text"
+    );
+    const pfx = (el: TextElement) =>
+      textEls.length > 1 ? `“${el.text.slice(0, 14)}” ` : "";
+    const colorEntries: { label: string; hex: string }[] = [];
+    for (const el of textEls) {
+      if (el.signStyle === "cabinet") {
+        colorEntries.push({
+          label: `${pfx(el)}Box face`,
+          hex: el.backerColor ?? "#f7f5f0",
+        });
+        colorEntries.push({ label: `${pfx(el)}Lettering`, hex: el.fill });
+      } else {
+        colorEntries.push({ label: `${pfx(el)}Letter face`, hex: el.fill });
+        colorEntries.push({
+          label: `${pfx(el)}Letter sides`,
+          hex: el.trimColor ?? "#26221f",
+        });
+      }
+      if ((el.lighting ?? "front") !== "none") {
+        colorEntries.push({
+          label: `${pfx(el)}Glow`,
+          hex:
+            el.ledColor ??
+            ((el.lighting ?? "front") === "halo" ? "#fff3d6" : el.fill),
+        });
+      }
+      if (el.raceway) {
+        colorEntries.push({
+          label: `${pfx(el)}Wireway`,
+          hex: el.racewayColor ?? "#3f3c38",
+        });
+      }
+    }
+    for (const el of elements) {
+      if (el.kind === "panel") {
+        colorEntries.push({ label: "Backer panel", hex: el.fill ?? "#3a2f28" });
+      }
+    }
+    const seenColor = new Set<string>();
+    const colors = colorEntries.filter((c) => {
+      const k = `${c.label}|${c.hex}`;
+      if (seenColor.has(k)) return false;
+      seenColor.add(k);
+      return true;
+    });
+
     const specs = firstText
       ? [
           { label: "Face", value: `3/16" acrylic (${firstText.fill})` },
@@ -998,6 +1048,7 @@ export default function DesignStep({
         totalLow: pricing.low,
         totalHigh: pricing.high,
         specs,
+        colors,
       });
       const res = await fetch("/api/proposals", {
         method: "POST",
