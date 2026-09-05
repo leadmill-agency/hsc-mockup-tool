@@ -10,6 +10,8 @@ export interface ProposalItem {
   detail?: string;
   low: number;
   high: number;
+  /** Right-column tag; defaults to "Included". */
+  note?: string;
 }
 
 export interface ProposalSection {
@@ -81,7 +83,7 @@ export function buildProposalHtml(input: ProposalInput): string {
         <div class="est-item">
           <div class="est-row">
             <span>${esc(it.label)}</span>
-            <span class="est-included">Included</span>
+            <span class="est-included">${esc(it.note ?? "Included")}</span>
           </div>
           ${it.detail ? `<div class="est-detail">${esc(it.detail)}</div>` : ""}
         </div>`

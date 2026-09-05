@@ -915,8 +915,16 @@ export default function DesignStep({
     const deliveryItems = [
       {
         label: "Fabrication base, delivery & standard installation",
-        detail: "Standard exterior installation; permits and engineering confirmed at consultation.",
+        detail: "Standard exterior installation; engineering confirmed at consultation.",
         ...toRange(cfg.baseCost),
+      },
+      {
+        label: "Permitting & approvals",
+        detail:
+          "HOA / City / County sign permits — we prepare, file, and manage the approvals. Government and HOA fees are billed at cost once confirmed.",
+        low: 0,
+        high: 0,
+        note: "Managed by HSC",
       },
       ...(wireways > 0
         ? [
