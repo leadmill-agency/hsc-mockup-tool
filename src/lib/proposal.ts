@@ -62,13 +62,16 @@ export function buildProposalHtml(input: ProposalInput): string {
       <div class="card-body">${body}</div>
     </div>`;
 
+  // Line items list WHAT is included (sizes, construction, mounting) but
+  // deliberately carry no prices — only the overall project range shows, so
+  // nobody reverse-engineers per-letter pricing by tweaking one item at a
+  // time. The full breakdown stays internal.
   const sectionsHtml = input.sections
     .map(
       (s) => `
     <div class="est-section">
       <div class="est-head">
         <span>${esc(s.title)}</span>
-        <span class="est-total">${range(s.low, s.high)}</span>
       </div>
       ${s.items
         .map(
@@ -76,7 +79,7 @@ export function buildProposalHtml(input: ProposalInput): string {
         <div class="est-item">
           <div class="est-row">
             <span>${esc(it.label)}</span>
-            <span class="est-price">${range(it.low, it.high)}</span>
+            <span class="est-included">Included</span>
           </div>
           ${it.detail ? `<div class="est-detail">${esc(it.detail)}</div>` : ""}
         </div>`
@@ -140,6 +143,8 @@ export function buildProposalHtml(input: ProposalInput): string {
   .est-item { border-bottom: 1px solid #e7e7ea; padding: 10px 0; }
   .est-row { display: flex; justify-content: space-between; font-size: 15px; }
   .est-price { white-space: nowrap; font-weight: 600; }
+  .est-included { white-space: nowrap; font-weight: 600; font-size: 12px;
+    color: #6b6b74; text-transform: uppercase; letter-spacing: 0.04em; }
   .est-detail { color: #6b6b74; font-size: 12.5px; margin-top: 4px;
                 line-height: 1.5; max-width: 560px; }
   .invest { background: #f4f7ff; border: 2px solid ${HSC.blue}; border-radius: 10px;
@@ -150,7 +155,7 @@ export function buildProposalHtml(input: ProposalInput): string {
   .invest .range { font-size: 27px; font-weight: 900; color: ${HSC.blue}; }
   .invest .sub { font-size: 11px; color: #6b6b74; margin-top: 2px; }
   .block { break-inside: avoid; }
-  .spec-title { color: #d21c1c; font-weight: 800; text-decoration: underline;
+  .spec-title { color: #1d4ed8; font-weight: 800; text-decoration: underline;
                 text-transform: uppercase; font-size: 14px; margin: 4px 0 8px; }
   .spec-line { font-size: 13.5px; line-height: 1.7; }
   .next { background: #f4f4f5; border-radius: 8px; padding: 12px 16px;
