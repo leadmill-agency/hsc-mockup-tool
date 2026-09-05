@@ -73,7 +73,7 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
     pct = false
   ) => (
     <label className="flex items-center justify-between gap-2 text-xs">
-      <span className="text-zinc-400">{label}</span>
+      <span className="text-zinc-600">{label}</span>
       <input
         type="number"
         step={step}
@@ -84,7 +84,7 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
             [key]: pct ? Number(e.target.value) / 100 : Number(e.target.value),
           }))
         }
-        className="w-20 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-right tabular-nums text-zinc-200"
+        className="w-20 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-right tabular-nums text-zinc-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
       />
     </label>
   );
@@ -92,18 +92,10 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
   return (
     <div className="w-full shrink-0 space-y-4 lg:w-80">
       <div
-        className={
-          customer
-            ? "rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-16px_rgba(24,24,27,0.18)] ring-1 ring-zinc-200"
-            : "rounded-xl border border-zinc-700 bg-zinc-900 p-4"
-        }
+        className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_12px_32px_-16px_rgba(24,24,27,0.18)] ring-1 ring-zinc-200"
       >
         <h3
-          className={
-            customer
-              ? "text-lg font-bold tracking-tight text-zinc-900"
-              : "font-semibold text-zinc-100"
-          }
+          className="text-lg font-bold tracking-tight text-zinc-900"
         >
           Your sign
         </h3>
@@ -116,13 +108,11 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
           )}
           {pieces.map((p, i) => (
             <div key={i} className="flex justify-between gap-2">
-              <span className={customer ? "truncate text-zinc-600" : "truncate text-zinc-400"}>
+              <span className="truncate text-zinc-600">
                 {p.label}
               </span>
               <span
-                className={`whitespace-nowrap tabular-nums font-medium ${
-                  customer ? "text-zinc-900" : "text-zinc-200"
-                }`}
+                className="whitespace-nowrap font-medium tabular-nums text-zinc-900"
               >
                 {formatFeetInches(p.heightInches)} tall
               </span>
@@ -130,8 +120,7 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
           ))}
         </div>
 
-        {pieces.length > 0 &&
-          (customer ? (
+        {pieces.length > 0 && (
             <div className="mt-4 rounded-xl bg-blue-600 p-4 text-white shadow-[0_2px_8px_rgba(37,99,235,0.35)]">
               <div className="text-sm font-medium text-blue-100">
                 Estimated investment
@@ -144,21 +133,9 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
                 consultation.
               </div>
             </div>
-          ) : (
-            <div className="mt-4 rounded-lg bg-amber-400/10 p-4 text-center">
-              <div className="text-xs uppercase tracking-wide text-amber-300/80">
-                Estimated project investment
-              </div>
-              <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
-                {formatUsd(pricing.low)} – {formatUsd(pricing.high)}
-              </div>
-              <div className="mt-1 text-xs text-zinc-400">
-                Final pricing confirmed at your consultation
-              </div>
-            </div>
-          ))}
+        )}
 
-        <p className={customer ? "mt-3 text-xs leading-5 text-zinc-500" : "mt-3 text-xs text-zinc-500"}>
+        <p className="mt-3 text-xs leading-5 text-zinc-500">
           Preliminary estimate from photographic measurement. Final pricing
           requires site verification.
         </p>
@@ -166,35 +143,35 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
 
       {/* internal-only: truly absent in customer mode, collapsed for staff */}
       {!customer && (
-      <details className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 opacity-70 transition-opacity open:opacity-100 hover:opacity-100">
+      <details className="rounded-2xl bg-white p-4 opacity-80 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_8px_24px_-16px_rgba(24,24,27,0.15)] ring-1 ring-zinc-200 transition-opacity open:opacity-100 hover:opacity-100">
         <summary className="cursor-pointer text-xs font-medium text-zinc-500">
           Internal · staff only
         </summary>
         <div className="mt-3 space-y-2 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Backer plates (+$400 each)</span>
-            <span className="tabular-nums text-zinc-200">{backers}</span>
+            <span className="text-zinc-600">Backer plates (+$400 each)</span>
+            <span className="tabular-nums text-zinc-900">{backers}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Wireway (+$400 flat)</span>
-            <span className="tabular-nums text-zinc-200">{wireways}</span>
+            <span className="text-zinc-600">Wireway (+$400 flat)</span>
+            <span className="tabular-nums text-zinc-900">{wireways}</span>
           </div>
-          <div className="space-y-1 border-t border-zinc-800 pt-2">
-            <div className="flex justify-between text-zinc-400">
+          <div className="space-y-1 border-t border-zinc-200 pt-2">
+            <div className="flex justify-between text-zinc-600">
               <span>Pieces cost</span>
               <span className="tabular-nums">{formatUsd(pricing.pieceCost, true)}</span>
             </div>
-            <div className="flex justify-between text-zinc-400">
+            <div className="flex justify-between text-zinc-600">
               <span>Base</span>
               <span className="tabular-nums">{formatUsd(cfg.baseCost)}</span>
             </div>
             {pricing.addOnTotal > 0 && (
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-zinc-600">
                 <span>Add-ons</span>
                 <span className="tabular-nums">{formatUsd(pricing.addOnTotal)}</span>
               </div>
             )}
-            <div className="flex justify-between font-medium text-zinc-300">
+            <div className="flex justify-between font-semibold text-zinc-900">
               <span>Est. project cost</span>
               <span className="tabular-nums">{formatUsd(pricing.cost, true)}</span>
             </div>
@@ -203,7 +180,7 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
               {Math.round(cfg.highMargin * 100)}% gross margin · target 40–50%
             </div>
           </div>
-          <div className="space-y-2 border-t border-zinc-800 pt-2">
+          <div className="space-y-2 border-t border-zinc-200 pt-2">
             {cfgField("coefficient", "$ / inch / piece", 0.05)}
             {cfgField("baseCost", "Base cost $", 50)}
             {cfgField("addOnCost", "Add-on $ each", 50)}

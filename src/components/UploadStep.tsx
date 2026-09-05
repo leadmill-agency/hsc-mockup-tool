@@ -80,10 +80,10 @@ export default function UploadStep({ onImage, customerMode }: Props) {
                   ? "border-blue-600 bg-blue-50"
                   : "border-zinc-300 shadow-[0_1px_2px_rgba(24,24,27,0.04),0_12px_32px_-16px_rgba(24,24,27,0.15)] hover:border-blue-500"
               }`
-            : `flex h-72 w-full max-w-2xl cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-colors ${
+            : `flex h-72 w-full max-w-2xl cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed bg-white transition-colors ${
                 dragOver
-                  ? "border-amber-400 bg-amber-400/10"
-                  : "border-zinc-600 bg-zinc-900 hover:border-zinc-400"
+                  ? "border-blue-600 bg-blue-50"
+                  : "border-zinc-300 shadow-[0_1px_2px_rgba(24,24,27,0.04),0_12px_32px_-16px_rgba(24,24,27,0.15)] hover:border-blue-500"
               }`
         }
         style={customerMode ? { animationDelay: "120ms" } : undefined}
@@ -113,11 +113,11 @@ export default function UploadStep({ onImage, customerMode }: Props) {
           </>
         ) : (
           <>
-            <CameraIcon className="h-12 w-12 text-zinc-400" />
-            <div className="text-lg font-medium text-zinc-100">
+            <CameraIcon className="h-12 w-12 text-zinc-500" />
+            <div className="text-lg font-semibold text-zinc-900">
               Drop a storefront photo here
             </div>
-            <div className="text-sm text-zinc-400">
+            <div className="text-sm text-zinc-500">
               or click to browse — JPEG or PNG, straight-on shot works best
             </div>
           </>
@@ -126,9 +126,7 @@ export default function UploadStep({ onImage, customerMode }: Props) {
       {error && (
         <div
           className={
-            customerMode
-              ? "rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.05)]"
-              : "text-sm text-red-400"
+            "rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.05)]"
           }
         >
           {error}

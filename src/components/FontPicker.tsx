@@ -146,7 +146,7 @@ export default function FontPicker({ value, onPick, customerMode }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
-  const cls = styles(!!customerMode);
+  const cls = styles(true);
 
   useEffect(() => {
     if (!open) return;

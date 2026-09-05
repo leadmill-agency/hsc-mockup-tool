@@ -178,7 +178,7 @@ export default function MeasureStep({
     });
   };
 
-  const REF_STYLE = REF_STYLES[customerMode ? "customer" : "staff"];
+  const REF_STYLE = REF_STYLES.customer;
   const ipp = inchesPerPixel(measurement);
   const mismatch = referenceMismatch(measurement);
   const zoomX = view.scale / fitScale;
@@ -233,9 +233,7 @@ export default function MeasureStep({
           }}
           onWheel={onWheel}
           className={
-            customerMode
-              ? "overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
-              : "overflow-hidden rounded-xl bg-zinc-950"
+            "overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
           }
         >
           <Layer>
@@ -290,7 +288,7 @@ export default function MeasureStep({
         </Stage>
         <div
           className={`absolute bottom-3 left-3 flex items-center gap-1 rounded-lg p-1 text-sm shadow ${
-            customerMode ? "bg-zinc-800/90" : "bg-zinc-900/90"
+            "bg-zinc-800/90"
           }`}
         >
           <button
@@ -325,9 +323,7 @@ export default function MeasureStep({
         <div>
           <h2
             className={
-              customerMode
-                ? "text-2xl font-extrabold tracking-tight text-zinc-900"
-                : "text-lg font-semibold text-zinc-100"
+              "text-2xl font-extrabold tracking-tight text-zinc-900"
             }
           >
             {customerMode
@@ -350,7 +346,7 @@ export default function MeasureStep({
           ) : (
             <>
               <p className="mt-1 text-sm text-zinc-400">
-                Drag the amber dots across the storefront and enter its width.
+                Drag the blue dots across the storefront and enter its width.
                 Drag the green line onto a door for a free second check — more
                 references, better accuracy.
               </p>
@@ -368,15 +364,13 @@ export default function MeasureStep({
             <div
               key={r.id}
               className={
-                customerMode
-                  ? "rounded-xl border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(24,24,27,0.04)]"
-                  : "rounded-lg border border-zinc-700 bg-zinc-900 p-3"
+                "rounded-xl border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(24,24,27,0.04)]"
               }
             >
               <div className="flex items-center justify-between">
                 <span
                   className={`flex items-center gap-2 text-sm font-medium ${
-                    customerMode ? "text-zinc-900" : "text-zinc-200"
+                    "text-zinc-900"
                   }`}
                 >
                   <span
@@ -388,7 +382,7 @@ export default function MeasureStep({
                 {r.kind !== "width" && (
                   <button
                     onClick={() => removeRef(r.id)}
-                    className={customerMode ? "text-xs font-medium text-zinc-500 hover:text-zinc-900" : "text-xs text-zinc-500 hover:text-red-400"}
+                    className={"text-xs font-medium text-zinc-500 hover:text-zinc-900"}
                   >
                     Remove
                   </button>
@@ -396,7 +390,7 @@ export default function MeasureStep({
               </div>
               <div className="mt-2 flex items-end gap-3">
                 <label className="block">
-                  <span className={`text-xs ${customerMode ? "font-medium text-zinc-600" : "text-zinc-400"}`}>
+                  <span className={`text-xs ${"font-medium text-zinc-600"}`}>
                     Feet
                   </span>
                   <input
@@ -409,14 +403,12 @@ export default function MeasureStep({
                       updateRef(r.id, { feet: Number(e.target.value) })
                     }
                     className={
-                      customerMode
-                        ? "mt-1 w-20 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
-                        : "mt-1 w-20 rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-1.5 text-zinc-100 placeholder:text-zinc-600"
+                      "mt-1 w-20 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
                     }
                   />
                 </label>
                 <label className="block">
-                  <span className={`text-xs ${customerMode ? "font-medium text-zinc-600" : "text-zinc-400"}`}>
+                  <span className={`text-xs ${"font-medium text-zinc-600"}`}>
                     Inches
                   </span>
                   <input
@@ -429,9 +421,7 @@ export default function MeasureStep({
                       updateRef(r.id, { inches: Number(e.target.value) })
                     }
                     className={
-                      customerMode
-                        ? "mt-1 w-16 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
-                        : "mt-1 w-16 rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-1.5 text-zinc-100 placeholder:text-zinc-600"
+                      "mt-1 w-16 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
                     }
                   />
                 </label>
@@ -448,9 +438,7 @@ export default function MeasureStep({
         <button
           onClick={addCustom}
           className={
-            customerMode
-              ? "w-full rounded-xl border border-dashed border-zinc-300 py-2 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-500 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-              : "w-full rounded-lg border border-dashed border-zinc-600 py-2 text-sm text-zinc-400 hover:border-zinc-400 hover:text-zinc-200"
+            "w-full rounded-xl border border-dashed border-zinc-300 py-2 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-500 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           }
         >
           + Add another reference
@@ -459,9 +447,7 @@ export default function MeasureStep({
         {mismatch !== null && mismatch > 0.15 && (
           <p
             className={
-              customerMode
-                ? "rounded-xl border border-zinc-300 bg-white p-3 text-sm font-medium leading-6 text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.05)]"
-                : "rounded-md border border-amber-400/30 bg-amber-400/10 p-2 text-sm text-amber-300"
+              "rounded-xl border border-zinc-300 bg-white p-3 text-sm font-medium leading-6 text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.05)]"
             }
           >
             Your references disagree by {(mismatch * 100).toFixed(0)}%.
@@ -472,9 +458,7 @@ export default function MeasureStep({
         {mismatch !== null && mismatch <= 0.15 && (
           <p
             className={
-              customerMode
-                ? "text-sm font-medium text-emerald-700"
-                : "text-sm text-emerald-400"
+              "text-sm font-medium text-emerald-700"
             }
           >
             References agree within {(mismatch * 100).toFixed(0)}% — good scale
@@ -482,13 +466,13 @@ export default function MeasureStep({
           </p>
         )}
         {shortActive && (
-          <p className={customerMode ? "text-sm font-medium text-zinc-900" : "text-sm text-amber-400"}>
+          <p className={"text-sm font-medium text-zinc-900"}>
             A reference line is very short — stretch it or zoom in for
             accuracy.
           </p>
         )}
         {!ipp && (
-          <p className={customerMode ? "text-sm text-zinc-500" : "text-sm text-zinc-400"}>
+          <p className={"text-sm text-zinc-500"}>
             Enter the storefront width (or place the door line) to continue.
           </p>
         )}
@@ -497,9 +481,7 @@ export default function MeasureStep({
           <button
             onClick={onBack}
             className={
-              customerMode
-                ? "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                : "rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+              "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             }
           >
             Back
@@ -508,9 +490,7 @@ export default function MeasureStep({
             onClick={onNext}
             disabled={!ipp}
             className={`font-semibold disabled:opacity-50 ${
-              customerMode
-                ? "rounded-xl bg-blue-600 px-6 py-2.5 text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                : "rounded-lg bg-amber-400 px-5 py-2 text-zinc-950 hover:bg-amber-300"
+              "rounded-xl bg-blue-600 px-6 py-2.5 text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             }`}
           >
             Continue to design

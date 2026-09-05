@@ -483,20 +483,21 @@ export default function App({
 
   if (screen === "home") {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100">
-        <header className="border-b border-zinc-800 px-6 py-4">
-          <div className="mx-auto max-w-5xl">
-            <h1 className="text-lg font-bold tracking-tight">
-              <span className="text-amber-400">HSC</span> Sign Mockup Tool
-            </h1>
+      <div className="showroom min-h-screen">
+        <header className="border-b border-zinc-200 bg-white px-6 py-3.5">
+          <div className="mx-auto flex max-w-5xl items-center gap-3">
+            <Wordmark small />
+            <span className="rounded-md bg-zinc-900 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+              Staff
+            </span>
           </div>
         </header>
         <main className="mx-auto max-w-5xl px-6 py-8">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Projects</h2>
+            <h2 className="text-xl font-bold tracking-tight text-zinc-900">Projects</h2>
             <button
               onClick={newProject}
-              className="rounded-lg bg-amber-400 px-5 py-2 font-semibold text-zinc-950 hover:bg-amber-300"
+              className="rounded-xl bg-blue-600 px-5 py-2 font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             >
               + New project
             </button>
@@ -510,7 +511,7 @@ export default function App({
               {projects.map((p) => (
                 <div
                   key={p.id}
-                  className="group overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 transition-colors hover:border-amber-400/60"
+                  className="group overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(24,24,27,0.05),0_8px_24px_-16px_rgba(24,24,27,0.15)] ring-1 ring-zinc-200 transition-shadow hover:ring-blue-600/50"
                 >
                   <button
                     onClick={() => openProject(p.id)}
@@ -529,10 +530,10 @@ export default function App({
                       </div>
                     )}
                     <div className="p-3">
-                      <div className="truncate text-sm font-medium text-zinc-100">
+                      <div className="truncate text-sm font-medium text-zinc-900">
                         {p.name}
                         {p.local && (
-                          <span className="ml-2 rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] font-normal text-zinc-400">
+                          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-normal text-zinc-600">
                             this device
                           </span>
                         )}
@@ -550,7 +551,7 @@ export default function App({
                           deleteProject(p.id),
                         ]).then(refreshProjects);
                     }}
-                    className="w-full border-t border-zinc-800 py-1.5 text-xs text-zinc-500 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+                    className="w-full border-t border-zinc-100 py-1.5 text-xs text-zinc-500 opacity-0 transition-opacity hover:text-zinc-900 group-hover:opacity-100"
                   >
                     Delete
                   </button>
@@ -565,18 +566,10 @@ export default function App({
 
   return (
     <div
-      className={
-        customerUX
-          ? "showroom min-h-screen"
-          : "min-h-screen bg-zinc-950 text-zinc-100"
-      }
+      className="showroom min-h-screen"
     >
       <header
-        className={
-          customerUX
-            ? "border-b border-zinc-200 bg-white px-6 py-3.5"
-            : "border-b border-zinc-800 px-6 py-4"
-        }
+        className="border-b border-zinc-200 bg-white px-6 py-3.5"
       >
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2">
           {!customerUX && (
@@ -585,19 +578,13 @@ export default function App({
                 setScreen("home");
                 refreshProjects();
               }}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
               title="Back to projects (work is autosaved)"
             >
               ← Projects
             </button>
           )}
-          {customerUX ? (
-            <Wordmark small />
-          ) : (
-            <h1 className="text-lg font-bold tracking-tight">
-              <span className="text-amber-400">HSC</span>
-            </h1>
-          )}
+          <Wordmark small />
           {customerUX ? (
             consultTime && (
               <span className="text-xs font-medium text-zinc-500">
@@ -608,16 +595,16 @@ export default function App({
             <input
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              className="w-56 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-zinc-100 hover:border-zinc-700 focus:border-zinc-600 focus:outline-none"
+              className="w-56 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-zinc-900 hover:border-zinc-300 focus:border-blue-600 focus:outline-none"
               title="Project name"
             />
           )}
           <nav
-            className={`flex items-center text-sm ${customerUX ? "gap-0 sm:ml-auto" : "gap-1"}`}
+            className="flex items-center gap-0 text-sm sm:ml-auto"
           >
             {STEPS.map((s, i) => (
               <span key={s.key} className="flex items-center">
-                {customerUX && i > 0 && (
+                {i > 0 && (
                   <svg
                     aria-hidden
                     viewBox="0 0 16 16"
@@ -632,23 +619,13 @@ export default function App({
                 <button
                   onClick={() => reached(s.key) && setStep(s.key)}
                   disabled={!reached(s.key)}
-                  className={
-                    customerUX
-                      ? `rounded-md px-2 py-1 transition-colors ${
-                          step === s.key
-                            ? "font-semibold text-blue-600"
-                            : reached(s.key)
-                              ? "font-medium text-zinc-700 hover:text-zinc-900"
-                              : "text-zinc-400"
-                        }`
-                      : `rounded-full px-3 py-1 transition-colors ${
-                          step === s.key
-                            ? "bg-amber-400 font-semibold text-zinc-950"
-                            : reached(s.key)
-                              ? "text-zinc-300 hover:bg-zinc-800"
-                              : "text-zinc-600"
-                        }`
-                  }
+                  className={`rounded-md px-2 py-1 transition-colors ${
+                    step === s.key
+                      ? "font-semibold text-blue-600"
+                      : reached(s.key)
+                        ? "font-medium text-zinc-700 hover:text-zinc-900"
+                        : "text-zinc-400"
+                  }`}
                 >
                   {customerUX ? s.customerLabel.replace(/^\d+ · /, "") : s.label}
                 </button>

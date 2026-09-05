@@ -178,9 +178,7 @@ export default function SquareUpStep({
       <div
         ref={containerRef}
         className={`relative flex min-h-[420px] flex-1 items-center justify-center overflow-hidden ${
-          customerMode
-            ? "rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
-            : "rounded-xl bg-zinc-950"
+          "rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
         }`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -201,11 +199,9 @@ export default function SquareUpStep({
         <div
           className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage: customerMode
-              ? "repeating-linear-gradient(0deg, rgba(147,197,253,.4) 0 1px, transparent 1px 60px)," +
-                "repeating-linear-gradient(90deg, rgba(147,197,253,.4) 0 1px, transparent 1px 60px)"
-              : "repeating-linear-gradient(0deg, rgba(255,193,7,.35) 0 1px, transparent 1px 60px)," +
-                "repeating-linear-gradient(90deg, rgba(255,193,7,.35) 0 1px, transparent 1px 60px)",
+            backgroundImage:
+              "repeating-linear-gradient(0deg, rgba(147,197,253,.4) 0 1px, transparent 1px 60px)," +
+              "repeating-linear-gradient(90deg, rgba(147,197,253,.4) 0 1px, transparent 1px 60px)",
           }}
         />
         {crop && (
@@ -261,9 +257,7 @@ export default function SquareUpStep({
         <div>
           <h2
             className={
-              customerMode
-                ? "text-2xl font-extrabold tracking-tight text-zinc-900"
-                : "text-lg font-semibold text-zinc-100"
+              "text-2xl font-extrabold tracking-tight text-zinc-900"
             }
           >
             {customerMode ? "Does the photo look straight?" : "Square up the photo"}
@@ -282,9 +276,7 @@ export default function SquareUpStep({
           )}
           <p
             className={
-              customerMode
-                ? "mt-2 text-sm text-zinc-500"
-                : "mt-2 text-xs text-zinc-500"
+              "mt-2 text-sm text-zinc-500"
             }
           >
             Drag the white corners to crop in on the storefront — a tight crop
@@ -296,18 +288,14 @@ export default function SquareUpStep({
             <div className="flex items-baseline justify-between text-sm">
               <span
                 className={
-                  customerMode
-                    ? "font-semibold text-zinc-900"
-                    : "font-medium text-zinc-200"
+                  "font-semibold text-zinc-900"
                 }
               >
                 {s.label}
               </span>
               <span
                 className={
-                  customerMode
-                    ? "tabular-nums text-zinc-500"
-                    : "tabular-nums text-zinc-400"
+                  "tabular-nums text-zinc-500"
                 }
               >
                 {params[s.key].toFixed(1)}°
@@ -323,7 +311,7 @@ export default function SquareUpStep({
               onChange={(e) =>
                 setParams((p) => ({ ...p, [s.key]: Number(e.target.value) }))
               }
-              className={`mt-1 w-full ${customerMode ? "accent-blue-600" : "accent-amber-400"}`}
+              className={`mt-1 w-full ${"accent-blue-600"}`}
             />
           </label>
         ))}
@@ -332,9 +320,7 @@ export default function SquareUpStep({
             onClick={apply}
             disabled={baking}
             className={`font-semibold disabled:opacity-50 ${
-              customerMode
-                ? "rounded-xl bg-blue-600 px-6 py-2.5 text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                : "rounded-lg bg-amber-400 px-5 py-2 text-zinc-950 hover:bg-amber-300"
+              "rounded-xl bg-blue-600 px-6 py-2.5 text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             }`}
           >
             {baking
@@ -349,9 +335,7 @@ export default function SquareUpStep({
               setTimeout(initCrop, 60);
             }}
             className={
-              customerMode
-                ? "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                : "rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+              "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             }
           >
             Reset
@@ -359,15 +343,13 @@ export default function SquareUpStep({
           <button
             onClick={onReplacePhoto}
             className={
-              customerMode
-                ? "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                : "rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800"
+              "rounded-xl border border-zinc-300 bg-white px-4 py-2.5 font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
             }
           >
             Replace photo
           </button>
         </div>
-        <p className={customerMode ? "text-sm text-zinc-500" : "text-xs text-zinc-500"}>
+        <p className={"text-sm text-zinc-500"}>
           The original photo is never modified — corrections are stored as
           parameters and can be re-applied.
         </p>

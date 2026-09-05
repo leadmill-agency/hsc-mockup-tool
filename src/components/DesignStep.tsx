@@ -1148,8 +1148,7 @@ export default function DesignStep({
   // dark cockpit for staff. Same markup, two materials.
   const focusRing =
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
-  const tb = customerMode
-    ? {
+  const tb = {
         iconBtn: `rounded-lg border border-zinc-300 bg-white p-2 text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 disabled:opacity-40 ${focusRing}`,
         btn: `rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 ${focusRing}`,
         input:
@@ -1163,22 +1162,6 @@ export default function DesignStep({
         check: "h-4 w-4 accent-blue-600",
         // pinned brand: black and blue only — destructive stays ink, not red
         del: `rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:border-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 ${focusRing}`,
-      }
-    : {
-        iconBtn:
-          "rounded-lg border border-zinc-600 p-2 text-zinc-200 hover:bg-zinc-800 disabled:opacity-40",
-        btn: "rounded-lg bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-600",
-        input:
-          "w-40 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100",
-        select:
-          "rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-2 text-sm text-zinc-100",
-        label: "flex items-center gap-2 text-sm text-zinc-300",
-        labelTight: "flex items-center gap-1 text-sm text-zinc-300",
-        color: "h-8 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-900",
-        num: "rounded-lg border border-zinc-600 bg-zinc-900 px-2 py-1.5 text-right tabular-nums text-zinc-100",
-        chip: "rounded-lg border border-zinc-600 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800",
-        check: "h-4 w-4 accent-amber-400",
-        del: "rounded-lg border border-red-500/50 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10",
       };
 
   // "Pick a look" applies to the selected text element, else the first one.
@@ -1624,36 +1607,20 @@ export default function DesignStep({
             </span>
           )}
           <div
-            className={`flex overflow-hidden text-sm ${
-              customerMode
-                ? "rounded-xl border border-zinc-300 bg-white p-0.5"
-                : "rounded-lg border border-zinc-600"
-            }`}
+            className="flex overflow-hidden rounded-xl border border-zinc-300 bg-white p-0.5 text-sm"
           >
             <button
               onClick={() => setNight(false)}
-              className={`flex items-center gap-1.5 ${
-                customerMode
-                  ? `rounded-lg px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
-                      !night
-                        ? "bg-zinc-900 text-white"
-                        : "text-zinc-500 hover:text-zinc-900"
-                    }`
-                  : `px-3 py-2 ${!night ? "bg-amber-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                !night ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
               <StrokeIcon d={ICON.sun} className="h-4 w-4" /> Day
             </button>
             <button
               onClick={() => setNight(true)}
-              className={`flex items-center gap-1.5 ${
-                customerMode
-                  ? `rounded-lg px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
-                      night
-                        ? "bg-blue-600 text-white"
-                        : "text-zinc-500 hover:text-zinc-900"
-                    }`
-                  : `px-3 py-2 ${night ? "bg-indigo-400 font-semibold text-zinc-950" : "text-zinc-300 hover:bg-zinc-800"}`
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                night ? "bg-blue-600 text-white" : "text-zinc-500 hover:text-zinc-900"
               }`}
             >
               <StrokeIcon d={ICON.moon} className="h-4 w-4" /> Night
@@ -1663,14 +1630,14 @@ export default function DesignStep({
             <>
               <button
                 onClick={exportPng}
-                className="rounded-lg border border-zinc-600 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+                className={tb.btn}
               >
                 Export PNG
               </button>
               <button
                 onClick={() => void makeProposal()}
                 disabled={elements.length === 0}
-                className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 disabled:opacity-40"
               >
                 Proposal
               </button>
@@ -1678,9 +1645,9 @@ export default function DesignStep({
                 onClick={emailProposal}
                 disabled={elements.length === 0}
                 title="Create the proposal and email it to the customer via Zapier"
-                className="rounded-lg border border-amber-400/60 px-3 py-2 text-sm font-semibold text-amber-300 hover:bg-amber-400/10 disabled:opacity-40"
+                className="rounded-lg border border-blue-600/50 px-3 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-40"
               >
-                ✉ Email
+                Email proposal
               </button>
             </>
           )}
@@ -1794,7 +1761,7 @@ export default function DesignStep({
             className={
               customerMode
                 ? "overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
-                : "overflow-hidden rounded-xl bg-zinc-950"
+                : "overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_2px_6px_rgba(24,24,27,0.08),0_20px_48px_-20px_rgba(24,24,27,0.35)]"
             }
             onMouseDown={(e) => {
               if (e.target === e.target.getStage()) setSelectedId(null);
@@ -1903,14 +1870,14 @@ export default function DesignStep({
                     scaleY={inv}
                   >
                     <Tag
-                      fill={customerMode ? "#2563eb" : "#fbbf24"}
+                      fill="#2563eb"
                       cornerRadius={3}
                     />
                     <KText
                       text={formatFeetInches(h)}
                       fontSize={12}
                       fontStyle="bold"
-                      fill={customerMode ? "#ffffff" : "#18181b"}
+                      fill="#ffffff"
                       padding={4}
                     />
                   </Label>
@@ -1929,9 +1896,9 @@ export default function DesignStep({
                   "bottom-left",
                   "bottom-right",
                 ]}
-                anchorFill={customerMode ? "#ffffff" : "#fbbf24"}
-                anchorStroke={customerMode ? "#2563eb" : "#18181b"}
-                borderStroke={customerMode ? "#2563eb" : "#fbbf24"}
+                anchorFill="#ffffff"
+                anchorStroke="#2563eb"
+                borderStroke="#2563eb"
                 rotateEnabled
               />
             </Layer>
@@ -1971,7 +1938,7 @@ export default function DesignStep({
 
         <div
           className={`mt-2 flex items-center justify-between text-sm ${
-            customerMode ? "text-zinc-600" : "text-zinc-400"
+            "text-zinc-600"
           }`}
         >
           <button
@@ -1979,7 +1946,7 @@ export default function DesignStep({
             className={
               customerMode
                 ? "font-medium underline underline-offset-2 hover:text-zinc-900"
-                : "underline hover:text-zinc-200"
+                : "underline hover:text-zinc-900"
             }
           >
             ← Back to measurement
