@@ -67,8 +67,10 @@ export function formatUsd(v: number, cents = false): string {
 }
 
 export function formatFeetInches(inches: number): string {
-  const ft = Math.floor(inches / 12);
-  const inch = Math.round(inches % 12);
+  // round to whole inches first so 23.7" carries to 2' 0", never 1' 12"
+  const total = Math.round(inches);
+  const ft = Math.floor(total / 12);
+  const inch = total - ft * 12;
   if (ft === 0) return `${inch}"`;
   return `${ft}' ${inch}"`;
 }

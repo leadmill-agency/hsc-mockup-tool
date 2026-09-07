@@ -49,6 +49,7 @@ import {
   SIGN_LOOKS,
   SignLook,
 } from "@/lib/looks";
+import { renderSpecDrawing } from "@/lib/specDrawing";
 
 interface Props {
   image: HTMLImageElement;
@@ -495,6 +496,14 @@ export default function DesignStep({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerMode, businessName, elements.length]);
+
+  // dev-only: lets automated checks render the spec drawing without a send
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__renderSpec = () => renderSpecDrawing(elements, ipp);
+    w.__els = elements;
+  }, [elements, ipp]);
 
   // Preload the look fonts so card previews and applies render real lettering
   useEffect(() => {
@@ -1041,14 +1050,21 @@ export default function DesignStep({
 
     try {
       // host the mockup images so the proposal page and email can use them
-      const [dayUrl, nightUrl] = await Promise.all([
+      // dimensioned lockup drawing (best-effort — a proposal without it
+      // is better than no proposal)
+      const specPng = await renderSpecDrawing(elements, ipp).catch(() => null);
+      const [dayUrl, nightUrl, specUrl] = await Promise.all([
         uploadAsset(`proposals/${token}/day.png`, dayPng),
         uploadAsset(`proposals/${token}/night.png`, nightPng),
+        specPng
+          ? uploadAsset(`proposals/${token}/spec.png`, specPng)
+          : Promise.resolve(undefined),
       ]);
       const html = buildProposalHtml({
         projectName,
         dayPng: dayUrl,
         nightPng: nightUrl,
+        specPng: specUrl,
         sections: [
           sec("Storefront sign", signItems),
           sec("Project delivery and allowances", deliveryItems),

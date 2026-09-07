@@ -30,6 +30,8 @@ export interface ProposalInput {
   projectName: string;
   dayPng: string;
   nightPng?: string;
+  /** Dimensioned line drawing of the sign lockup (specDrawing.ts). */
+  specPng?: string;
   sections: ProposalSection[];
   totalLow: number;
   totalHigh: number;
@@ -219,6 +221,14 @@ export function buildProposalHtml(input: ProposalInput): string {
     input.nightPng
       ? `<div class="bar">Illuminated Night View</div>
   <figure><img src="${input.nightPng}" alt="Proposed sign — night view"></figure>`
+      : ""
+  }
+  ${
+    input.specPng
+      ? `<div class="bar">Sign Dimensions</div>
+  <figure><img src="${input.specPng}" alt="Dimensioned sign drawing"></figure>
+  <div class="fine" style="margin-top:-8px">Dimensions from photographic
+  measurement — verified in the final field survey before production.</div>`
       : ""
   }
 
