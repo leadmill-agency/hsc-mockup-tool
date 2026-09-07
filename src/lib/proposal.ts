@@ -146,14 +146,18 @@ export function buildProposalHtml(input: ProposalInput): string {
   .brand { color: ${HSC.blue}; font-weight: 900; font-size: 26px;
            line-height: 1.02; align-self: center; letter-spacing: .01em; }
   .brand small { display: block; font-size: 15px; letter-spacing: .18em; }
-  .cards { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+  .cards { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto;
+           align-items: stretch; }
   .card { border-radius: 10px; overflow: hidden; min-width: 150px;
-          box-shadow: 0 1px 4px rgba(0,0,0,.25); font-size: 11px; }
+          box-shadow: 0 1px 4px rgba(0,0,0,.25); font-size: 11px;
+          display: flex; flex-direction: column; }
   .card-head { background: ${HSC.blue}; color: #fff; font-weight: 800;
                text-transform: uppercase; text-align: center; padding: 5px 10px;
                letter-spacing: .06em; border-bottom: 2px solid #fff; }
   .card-body { background: ${HSC.blue}; color: #fff; text-align: center;
-               padding: 8px 10px; font-weight: 600; line-height: 1.5; }
+               padding: 8px 10px; font-weight: 600; line-height: 1.5;
+               flex: 1; display: flex; flex-direction: column;
+               justify-content: center; }
   .bar { background: #111; color: #fff; font-style: italic; font-weight: 800;
          text-transform: uppercase; letter-spacing: .05em; font-size: 13px;
          padding: 6px 12px; margin: 26px 0 10px; }

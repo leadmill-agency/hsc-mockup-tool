@@ -122,6 +122,29 @@ export const SIGN_LOOKS: SignLook[] = [
     },
   },
   {
+    id: "cloud",
+    name: "Cloud Sign",
+    blurb: "A shaped lit backer that hugs your letters",
+    googleName: "Oswald",
+    patch: {
+      fontFamily: DEFAULT_LOOK_FONT,
+      fill: "#1c1917",
+      lighting: "front",
+      ledColor: "#ffffff",
+      signStyle: "cloud",
+      backerColor: "#f7f5f0",
+    },
+    preview: {
+      text: {
+        fontFamily: DEFAULT_LOOK_FONT,
+        color: "#1c1917",
+        WebkitTextStroke: "8px #f7f5f0",
+        paintOrder: "stroke",
+        textShadow: "0 0 12px rgba(255,255,255,0.45)",
+      },
+    },
+  },
+  {
     id: "box",
     name: "Lightbox",
     blurb: "A lit white box sign — clean and simple",
