@@ -16,6 +16,9 @@ import {
 import {
   backerCount,
   CABINET_PAD_IN,
+  CLOUD_PAD_IN,
+  isBoxStyle,
+  textPieceGroups,
   cabinetHeightInches,
   capHeightRatio,
   fontSizeForLetterHeight,
@@ -128,6 +131,10 @@ function shade(hex: string, factor: number): string {
   return `#${c(0)}${c(2)}${c(4)}`;
 }
 
+/** Face-plate side margin in inches for box-style signs. */
+const boxPadXIn = (el: TextElement): number =>
+  el.signStyle === "cloud" ? CLOUD_PAD_IN.x : CABINET_PAD_IN.x;
+
 const rectHitFunc = (ctx: Konva.Context, shape: Konva.Shape) => {
   ctx.beginPath();
   ctx.rect(0, 0, shape.width(), shape.height());
@@ -177,6 +184,54 @@ function TextSign({
   // halo wash defaults to warm white; front-lit glow defaults to face color
   const haloLed = el.ledColor ?? "#fff3d6";
   const frontLed = el.ledColor ?? el.fill;
+
+  if (el.signStyle === "cloud") {
+    // contour "cloud" backer: a shaped plate hugging the lettering, lit as a
+    // whole at night with flat letters on its face
+    const padPx = (CLOUD_PAD_IN.x / ipp) * scale;
+    const face = el.backerColor ?? "#f7f5f0";
+    const lit = night && lighting !== "none";
+    const plate = night && !lit ? shade(face, -0.55) : face;
+    const w = measureTextWidth(el.text, el.fontSize, family) * scale;
+    return (
+      <Group
+        x={el.x * scale}
+        y={el.y * scale}
+        rotation={el.rotation}
+        {...draggableProps}
+      >
+        {/* invisible hit target spanning the plate */}
+        <Rect
+          x={-padPx}
+          y={-padPx}
+          width={w + padPx * 2}
+          height={fs + padPx * 2}
+          fill="rgba(0,0,0,0.001)"
+          listening
+        />
+        {/* the contour plate: the lettering stroked fat with round joins */}
+        <KText
+          {...common}
+          stroke={plate}
+          strokeWidth={padPx * 2}
+          lineJoin="round"
+          fill={plate}
+          shadowColor={lit ? (el.ledColor ?? "#fff8e0") : "black"}
+          shadowBlur={lit ? fs * 0.9 : 8 * scale}
+          shadowOffsetY={lit ? 0 : 4 * scale}
+          shadowOpacity={lit ? 0.9 : night ? 0 : 0.4}
+        />
+        <KText
+          text={el.text}
+          fontSize={fs}
+          fontFamily={family}
+          fontStyle="bold"
+          fill={night && !lit ? shade(el.fill, -0.4) : el.fill}
+          listening={false}
+        />
+      </Group>
+    );
+  }
 
   if (el.signStyle === "cabinet") {
     // illuminated box: the face lights up as a whole at night
@@ -675,10 +730,10 @@ export default function DesignStep({
 
   const nodeDims = (node: Konva.Node, el: SignElement) =>
     el.kind === "text"
-      ? el.signStyle === "cabinet"
+      ? isBoxStyle(el)
         ? {
             w:
-              (textWidthInches(el, ipp) + CABINET_PAD_IN.x * 2) *
+              (textWidthInches(el, ipp) + boxPadXIn(el) * 2) *
               Math.abs(node.scaleX()),
             h: cabinetHeightInches(el, ipp) * Math.abs(node.scaleY()),
           }
@@ -693,11 +748,11 @@ export default function DesignStep({
 
   const elementStageSize = (el: SignElement) =>
     el.kind === "text"
-      ? el.signStyle === "cabinet"
+      ? isBoxStyle(el)
         ? {
             w:
               (measureTextWidth(el.text, el.fontSize, el.fontFamily) +
-                (CABINET_PAD_IN.x * 2) / ipp) *
+                (boxPadXIn(el) * 2) / ipp) *
               scale,
             h: (el.fontSize + (CABINET_PAD_IN.y * 2) / ipp) * scale,
           }
@@ -882,22 +937,35 @@ export default function DesignStep({
 
     const signItems = elements.flatMap((el) => {
       if (el.kind === "text") {
-        if (el.signStyle === "cabinet") {
+        if (isBoxStyle(el)) {
           const bh = cabinetHeightInches(el, ipp);
-          const bw = textWidthInches(el, ipp) + CABINET_PAD_IN.x * 2;
+          const bw = textWidthInches(el, ipp) + boxPadXIn(el) * 2;
+          const kind = el.signStyle === "cloud" ? "cloud" : "cabinet";
           return {
-            label: `“${el.text}” cabinet sign`,
-            detail: `Approx. ${formatFeetInches(bw)} W × ${formatFeetInches(bh)} H ${lightingLabel(el.lighting)} cabinet/box sign.`,
+            label: `“${el.text}” ${kind} sign`,
+            detail: `Approx. ${formatFeetInches(bw)} W × ${formatFeetInches(bh)} H ${lightingLabel(el.lighting)} ${kind === "cloud" ? "contour cloud" : "cabinet/box"} sign.`,
             ...toRange(bh * cfg.coefficient),
           };
         }
         const h = textLetterHeightInches(el, ipp);
         const w = textWidthInches(el, ipp);
         const count = el.text.replace(/\s/g, "").length;
+        // per-piece pricing: each glyph at its own measured height
+        const groups = textPieceGroups(el, ipp);
+        const pieceInches = groups.reduce(
+          (sum, g) => sum + g.heightInches * g.count,
+          0
+        );
+        const mix =
+          groups.length > 1
+            ? ` (${groups
+                .map((g) => `${g.count} at ${formatFeetInches(g.heightInches)}`)
+                .join(", ")})`
+            : "";
         return {
           label: `“${el.text}” channel letters`,
-          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${el.raceway ? ", raceway mounted (painted to match wall)" : ", flush mounted"}.`,
-          ...toRange(h * count * cfg.coefficient),
+          detail: `Approx. ${formatFeetInches(w)} W overall · ${formatFeetInches(h)} letter height · ${count} ${lightingLabel(el.lighting)} channel letters${mix}${el.raceway ? ", raceway mounted (painted to match wall)" : ", flush mounted"}.`,
+          ...toRange(pieceInches * cfg.coefficient),
         };
       }
       if (el.kind === "panel") return [];
@@ -983,9 +1051,9 @@ export default function DesignStep({
       textEls.length > 1 ? `“${el.text.slice(0, 14)}” ` : "";
     const colorEntries: { label: string; hex: string }[] = [];
     for (const el of textEls) {
-      if (el.signStyle === "cabinet") {
+      if (isBoxStyle(el)) {
         colorEntries.push({
-          label: `${pfx(el)}Box face`,
+          label: `${pfx(el)}${el.signStyle === "cloud" ? "Cloud" : "Box"} face`,
           hex: el.backerColor ?? "#f7f5f0",
         });
         colorEntries.push({ label: `${pfx(el)}Lettering`, hex: el.fill });
@@ -1148,9 +1216,9 @@ export default function DesignStep({
     liveDims ??
     (selected
       ? selected.kind === "text"
-        ? selected.signStyle === "cabinet"
+        ? isBoxStyle(selected)
           ? {
-              w: textWidthInches(selected, ipp) + CABINET_PAD_IN.x * 2,
+              w: textWidthInches(selected, ipp) + boxPadXIn(selected) * 2,
               h: cabinetHeightInches(selected, ipp),
             }
           : {
@@ -1361,10 +1429,10 @@ export default function DesignStep({
               <select
                 value={selected.signStyle ?? "letters"}
                 onChange={(e) => {
-                  const v = e.target.value as "letters" | "cabinet";
+                  const v = e.target.value as "letters" | "cabinet" | "cloud";
                   commit(
                     selected.id,
-                    v === "cabinet"
+                    v !== "letters"
                       ? {
                           signStyle: v,
                           raceway: false,
@@ -1383,6 +1451,7 @@ export default function DesignStep({
               >
                 <option value="letters">Channel letters</option>
                 <option value="cabinet">Cabinet sign</option>
+                <option value="cloud">Cloud sign (contour backer)</option>
               </select>
               <FontPicker
                 customerMode={customerMode}
@@ -1410,7 +1479,7 @@ export default function DesignStep({
                   className={tb.color}
                 />
               </label>
-              {selected.signStyle === "cabinet" && (
+              {isBoxStyle(selected) && (
                 <label className={tb.label}>
                   Box
                   <input
@@ -1424,7 +1493,7 @@ export default function DesignStep({
                   />
                 </label>
               )}
-              {selected.signStyle !== "cabinet" && (
+              {!isBoxStyle(selected) && (
               <label className={tb.label}>
                 Trim
                 <input
@@ -1438,7 +1507,7 @@ export default function DesignStep({
                 />
               </label>
               )}
-              {selected.signStyle !== "cabinet" && (
+              {!isBoxStyle(selected) && (
               <label className={tb.label}>
                 <input
                   type="checkbox"
@@ -1456,7 +1525,7 @@ export default function DesignStep({
                 Raceway
               </label>
               )}
-              {selected.signStyle !== "cabinet" && selected.raceway && (
+              {!isBoxStyle(selected) && selected.raceway && (
                 <>
                   <input
                     type="color"
@@ -1817,7 +1886,7 @@ export default function DesignStep({
                 // raceway strip drawn behind its letters
                 if (
                   el.kind !== "text" ||
-                  el.signStyle === "cabinet" ||
+                  isBoxStyle(el) ||
                   !el.raceway
                 )
                   return null;
@@ -1869,7 +1938,7 @@ export default function DesignStep({
                 const h =
                   liveDims?.h ??
                   (el.kind === "text"
-                    ? el.signStyle === "cabinet"
+                    ? isBoxStyle(el)
                       ? cabinetHeightInches(el, ipp)
                       : textLetterHeightInches(el, ipp)
                     : el.height * ipp);
@@ -1970,8 +2039,8 @@ export default function DesignStep({
           {selectedDims && (
             <span className="tabular-nums">
               {selected?.kind === "text"
-                ? selected.signStyle === "cabinet"
-                  ? `Cabinet: ${formatFeetInches(selectedDims.w)} × ${formatFeetInches(selectedDims.h)}`
+                ? isBoxStyle(selected)
+                  ? `${selected.signStyle === "cloud" ? "Cloud" : "Cabinet"}: ${formatFeetInches(selectedDims.w)} × ${formatFeetInches(selectedDims.h)}`
                   : `Letters: ${formatFeetInches(selectedDims.h)} tall · ${formatFeetInches(selectedDims.w)} wide`
                 : `Logo: ${formatFeetInches(selectedDims.w)} × ${formatFeetInches(selectedDims.h)}`}
             </span>
@@ -2082,10 +2151,10 @@ export default function DesignStep({
                         className={tb.color}
                       />
                     </label>
-                    {selected.signStyle === "cabinet" ? (
+                    {isBoxStyle(selected) ? (
                       <label className="block">
                         <div className="mb-1 text-sm font-medium text-zinc-700">
-                          Box color
+                          {selected.signStyle === "cloud" ? "Cloud color" : "Box color"}
                         </div>
                         <input
                           type="color"
@@ -2160,10 +2229,10 @@ export default function DesignStep({
                       <select
                         value={selected.signStyle ?? "letters"}
                         onChange={(e) => {
-                          const v = e.target.value as "letters" | "cabinet";
+                          const v = e.target.value as "letters" | "cabinet" | "cloud";
                           commit(
                             selected.id,
-                            v === "cabinet"
+                            v !== "letters"
                               ? {
                                   signStyle: v,
                                   raceway: false,
@@ -2181,6 +2250,7 @@ export default function DesignStep({
                       >
                         <option value="letters">Lit letters</option>
                         <option value="cabinet">Lit box sign</option>
+                        <option value="cloud">Cloud sign</option>
                       </select>
                     </div>
                     <label className="block shrink-0">
@@ -2210,7 +2280,7 @@ export default function DesignStep({
                     </label>
                   </div>
                 )}
-                {selected.kind === "text" && selected.signStyle !== "cabinet" && (
+                {selected.kind === "text" && !isBoxStyle(selected) && (
                   <div>
                     <label
                       className={tb.label}

@@ -7,6 +7,8 @@
 import {
   CABINET_PAD_IN,
   cabinetHeightInches,
+  CLOUD_PAD_IN,
+  isBoxStyle,
   measureTextWidth,
   SignElement,
   SIGN_FONT,
@@ -34,9 +36,10 @@ interface Ext {
 function textExtent(el: TextElement, ipp: number): Ext {
   const family = el.fontFamily ?? SIGN_FONT;
   const w = measureTextWidth(el.text, el.fontSize, family);
-  if (el.signStyle === "cabinet") {
-    const padX = CABINET_PAD_IN.x / ipp;
-    const padY = CABINET_PAD_IN.y / ipp;
+  if (isBoxStyle(el)) {
+    const pad = el.signStyle === "cloud" ? CLOUD_PAD_IN : CABINET_PAD_IN;
+    const padX = pad.x / ipp;
+    const padY = pad.y / ipp;
     return {
       el,
       x1: el.x - padX,
@@ -177,7 +180,7 @@ export async function renderSpecDrawing(
     (e): e is TextElement => e.kind === "text"
   );
   for (const el of texts) {
-    if (el.signStyle === "cabinet" || !el.raceway) continue;
+    if (isBoxStyle(el) || !el.raceway) continue;
     const family = el.fontFamily ?? SIGN_FONT;
     const w = measureTextWidth(el.text, el.fontSize, family);
     const rwH = (RW_H_IN / ipp) * scale;
@@ -211,15 +214,28 @@ export async function renderSpecDrawing(
           (e.x2 - e.x1) * scale,
           (e.y2 - e.y1) * scale
         );
+      } else if (el.signStyle === "cloud") {
+        // contour plate: the lettering stroked fat with round joins
+        ctx.font = `bold ${fs}px ${family}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.strokeStyle = el.backerColor ?? "#f7f5f0";
+        ctx.fillStyle = el.backerColor ?? "#f7f5f0";
+        ctx.lineWidth = (CLOUD_PAD_IN.x / ipp) * scale * 2;
+        ctx.lineJoin = "round";
+        ctx.strokeText(el.text, X(el.x), Y(el.y));
+        ctx.fillText(el.text, X(el.x), Y(el.y));
       }
       ctx.font = `bold ${fs}px ${family}`;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      // trim-cap outline keeps light faces legible on the light ground
-      ctx.strokeStyle = el.trimColor ?? "#26221f";
-      ctx.lineWidth = Math.max(1.25, (0.5 / ipp) * scale);
-      ctx.lineJoin = "round";
-      ctx.strokeText(el.text, X(el.x), Y(el.y));
+      if (!isBoxStyle(el)) {
+        // trim-cap outline keeps light faces legible on the light ground
+        ctx.strokeStyle = el.trimColor ?? "#26221f";
+        ctx.lineWidth = Math.max(1.25, (0.5 / ipp) * scale);
+        ctx.lineJoin = "round";
+        ctx.strokeText(el.text, X(el.x), Y(el.y));
+      }
       ctx.fillStyle = el.fill;
       ctx.fillText(el.text, X(el.x), Y(el.y));
     }
@@ -255,7 +271,7 @@ export async function renderSpecDrawing(
     // with textBaseline "top", the glyph box sits below the draw point
     const topY = Y(el.y) + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent);
     const botY = Y(el.y) + m.fontBoundingBoxAscent + m.actualBoundingBoxDescent;
-    const cabinet = el.signStyle === "cabinet";
+    const cabinet = isBoxStyle(el);
     const inches = cabinet
       ? cabinetHeightInches(el, ipp)
       : textLetterHeightInches(el, ipp);
@@ -270,7 +286,7 @@ export async function renderSpecDrawing(
       BLUE,
       left ? "left" : "right"
     );
-    if (el.signStyle !== "cabinet" && el.raceway) {
+    if (!isBoxStyle(el) && el.raceway) {
       const w = measureTextWidth(el.text, el.fontSize, family);
       const rwWIn = w * ipp + RW_PAD_IN * 2;
       const yLine =

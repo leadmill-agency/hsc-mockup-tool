@@ -70,18 +70,27 @@ export interface TextElement {
   trimColor?: string; // trim cap + return color; default dark bronze
   lighting?: Lighting; // default "front"; drives night rendering + proposal
   ledColor?: string; // LED color: halo wash / front-lit glow at night
-  signStyle?: "letters" | "cabinet"; // channel letters (default) or cabinet/box sign
+  signStyle?: "letters" | "cabinet" | "cloud"; // letters (default), box sign, or contour "cloud" backer
   backer?: boolean; // letters mounted on a backer panel (+$400 each)
   backerColor?: string; // backer panel color, or the cabinet face color
 }
 
 /** Cabinet face extends this far beyond the text, in inches. */
 export const CABINET_PAD_IN = { x: 8, y: 5 };
+/** Cloud (contour) backer margin around the lettering, in inches. */
+export const CLOUD_PAD_IN = { x: 5, y: 3.5 };
+/** Box-style signs price and render as one piece with a face plate. */
+export function isBoxStyle(el: TextElement): boolean {
+  return el.signStyle === "cabinet" || el.signStyle === "cloud";
+}
 /** Backer panel margin around the letters, in inches. */
 export const BACKER_PAD_IN = { x: 6, y: 4 };
 
 export function isCabinet(el: SignElement): el is TextElement {
-  return el.kind === "text" && el.signStyle === "cabinet";
+  return (
+    el.kind === "text" &&
+    (el.signStyle === "cabinet" || el.signStyle === "cloud")
+  );
 }
 
 /** Number of backer plates implied by the design (+$400 each): one per
@@ -90,9 +99,10 @@ export function backerCount(elements: SignElement[]): number {
   return elements.filter((e) => e.kind === "panel").length;
 }
 
-/** Overall cabinet box height in inches (text + face margins). */
+/** Overall box/cloud height in inches (text + face margins). */
 export function cabinetHeightInches(el: TextElement, ipp: number): number {
-  return el.fontSize * ipp + CABINET_PAD_IN.y * 2;
+  const pad = el.signStyle === "cloud" ? CLOUD_PAD_IN : CABINET_PAD_IN;
+  return el.fontSize * ipp + pad.y * 2;
 }
 
 export interface LogoElement {
@@ -190,6 +200,9 @@ const _capRatios = new Map<string, number>();
 /** Drop a cached cap ratio — call after a webfont finishes loading. */
 export function invalidateCapHeight(family: string): void {
   _capRatios.delete(family);
+  for (const key of _glyphRatios.keys()) {
+    if (key.startsWith(family + "|")) _glyphRatios.delete(key);
+  }
 }
 export function capHeightRatio(family: string = SIGN_FONT): number {
   const cached = _capRatios.get(family);
@@ -202,6 +215,66 @@ export function capHeightRatio(family: string = SIGN_FONT): number {
   const ratio = m.actualBoundingBoxAscent ? m.actualBoundingBoxAscent / 100 : 0.72;
   _capRatios.set(family, ratio);
   return ratio;
+}
+
+// Per-glyph ink heights: an apostrophe is a small fabricated piece, not a
+// full-height letter, and pricing should reflect that (owner rule).
+const _glyphRatios = new Map<string, number>();
+export function glyphHeightRatio(
+  ch: string,
+  family: string = SIGN_FONT
+): number {
+  const key = family + "|" + ch;
+  const cached = _glyphRatios.get(key);
+  if (cached !== undefined) return cached;
+  if (typeof document === "undefined") return 0.72;
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return 0.72;
+  ctx.font = `bold 100px ${family}`;
+  const m = ctx.measureText(ch);
+  const h = (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) / 100;
+  const ratio = h > 0.04 ? h : capHeightRatio(family);
+  _glyphRatios.set(key, ratio);
+  return ratio;
+}
+
+export interface TextPieceGroup {
+  heightInches: number;
+  count: number;
+}
+
+/** Pieces of a channel-letter run grouped by measured glyph height (rounded
+ *  to the inch): "DICKEY'S" is 7 letters at cap height plus one small
+ *  apostrophe piece, priced at its own height. */
+export function textPieceGroups(
+  el: TextElement,
+  ipp: number
+): TextPieceGroup[] {
+  const family = el.fontFamily ?? SIGN_FONT;
+  const heights = [...el.text.replace(/\s/g, "")]
+    .map((ch) => el.fontSize * glyphHeightRatio(ch, family) * ipp)
+    .sort((a, b) => b - a);
+  if (!heights.length) return [];
+  // cluster with tolerance so measurement noise doesn't split same-size
+  // letters; a genuinely small piece (apostrophe, period) forms its own group
+  const groups: { rep: number; count: number }[] = [];
+  for (const h of heights) {
+    const g = groups[groups.length - 1];
+    if (g && g.rep - h < Math.max(1.5, g.rep * 0.15)) {
+      g.count++;
+    } else {
+      groups.push({ rep: h, count: 1 });
+    }
+  }
+  // the main letter group displays as the element's nominal letter height
+  const capH = textLetterHeightInches(el, ipp);
+  return groups.map((g) => ({
+    heightInches:
+      Math.abs(g.rep - capH) / capH < 0.12
+        ? capH
+        : Math.max(1, Math.round(g.rep)),
+    count: g.count,
+  }));
 }
 
 /** True capital-letter height of a text element, in inches. */
@@ -225,7 +298,8 @@ export function measureTextWidth(
 /** Number of wireways/raceways implied by the design. */
 export function racewayCount(elements: SignElement[]): number {
   return elements.filter(
-    (e) => e.kind === "text" && e.signStyle !== "cabinet" && e.raceway
+    (e) =>
+      e.kind === "text" && (e.signStyle ?? "letters") === "letters" && e.raceway
   ).length;
 }
 

@@ -10,9 +10,10 @@ import {
 import {
   backerCount,
   cabinetHeightInches,
+  isBoxStyle,
   racewayCount,
   SignElement,
-  textLetterHeightInches,
+  textPieceGroups,
 } from "@/lib/types";
 
 interface Props {
@@ -34,18 +35,25 @@ export function elementsToPieces(elements: SignElement[], ipp: number): PieceGro
     el.kind === "panel"
       ? [] // panels price as backer-plate add-ons, not pieces
       : el.kind === "text"
-      ? el.signStyle === "cabinet"
+      ? isBoxStyle(el)
         ? {
-            // cabinet/box signs price as one piece at overall box height
-            label: `“${el.text}” — cabinet sign`,
+            // box-style signs price as one piece at overall face height
+            label: `“${el.text}” — ${
+              el.signStyle === "cloud" ? "cloud sign" : "cabinet sign"
+            }`,
             heightInches: cabinetHeightInches(el, ipp),
             count: 1,
           }
-        : {
-            label: `“${el.text}” — ${letterCount(el.text)} letters`,
-            heightInches: textLetterHeightInches(el, ipp),
-            count: letterCount(el.text),
-          }
+        : // letters price per piece at each piece's measured height, so an
+          // apostrophe is a small piece, not a full-height letter
+          textPieceGroups(el, ipp).map((g, gi) => ({
+            label:
+              gi === 0
+                ? `“${el.text}” — ${g.count} letter${g.count === 1 ? "" : "s"}`
+                : `“${el.text}” — ${g.count} small piece${g.count === 1 ? "" : "s"}`,
+            heightInches: g.heightInches,
+            count: g.count,
+          }))
       : el.priceAsLetters
         ? {
             label: `Logo — ${el.letterCount ?? 10} letters`,
