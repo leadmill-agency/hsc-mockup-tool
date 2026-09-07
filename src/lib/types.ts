@@ -137,6 +137,7 @@ export interface PanelElement {
   height: number;
   rotation: number;
   fill?: string; // painted aluminum color; default dark bronze
+  round?: boolean; // pill shape: fully rounded ends (menu bars, badges)
 }
 
 export type SignElement = TextElement | LogoElement | PanelElement;

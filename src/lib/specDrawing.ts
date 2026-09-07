@@ -198,7 +198,17 @@ export async function renderSpecDrawing(
     const el = e.el;
     if (el.kind === "panel") {
       ctx.fillStyle = el.fill ?? "#3a2f28";
-      ctx.fillRect(X(el.x), Y(el.y), el.width * scale, el.height * scale);
+      const pw = el.width * scale;
+      const ph = el.height * scale;
+      ctx.beginPath();
+      ctx.roundRect(
+        X(el.x),
+        Y(el.y),
+        pw,
+        ph,
+        el.round ? Math.min(pw, ph) / 2 : 3
+      );
+      ctx.fill();
     } else if (el.kind === "logo") {
       const img = await loadImg(el.src);
       if (img)

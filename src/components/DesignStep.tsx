@@ -410,7 +410,11 @@ function PanelNode({
       height={el.height * scale}
       rotation={el.rotation}
       fill={night ? shade(fill, -0.45) : fill}
-      cornerRadius={2 * scale}
+      cornerRadius={
+        el.round
+          ? (Math.min(el.width, el.height) / 2) * scale
+          : 2 * scale
+      }
       shadowColor="black"
       shadowBlur={10 * scale}
       shadowOffsetY={6 * scale}
@@ -1340,6 +1344,17 @@ export default function DesignStep({
                   className={tb.color}
                 />
               </label>
+              <label className={tb.label} title="Fully rounded ends">
+                <input
+                  type="checkbox"
+                  checked={!!selected.round}
+                  onChange={(e) =>
+                    commit(selected.id, { round: e.target.checked })
+                  }
+                  className={tb.check}
+                />
+                Pill
+              </label>
               <button
                 onClick={() =>
                   commit(selected.id, {
@@ -2110,6 +2125,20 @@ export default function DesignStep({
                     }
                     className={tb.color}
                   />
+                </label>
+                <label
+                  className={tb.label}
+                  title="Fully rounded ends — menu bars, badges, accent pills"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!selected.round}
+                    onChange={(e) =>
+                      commit(selected.id, { round: e.target.checked })
+                    }
+                    className={tb.check}
+                  />
+                  Rounded ends (pill)
                 </label>
               </div>
             ) : (
