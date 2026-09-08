@@ -1260,11 +1260,40 @@ export default function DesignStep({
     (el.signStyle ?? "letters") === look.patch.signStyle &&
     el.fill === look.patch.fill;
   const applyLook = (look: SignLook) => {
-    if (!lookTarget) return;
     void (async () => {
       if (look.googleName) {
         await loadGoogleFont(look.googleName).catch(() => {});
         invalidateCapHeight(look.patch.fontFamily!);
+      }
+      if (!lookTarget) {
+        // empty design (staff starts blank): tapping a look creates the
+        // first sign in that style — typed text if any, else a placeholder
+        const text = newText.trim() || "YOUR SIGN";
+        const family = look.patch.fontFamily;
+        let fontSize = fontSizeForLetterHeight(18, ipp, family);
+        const maxW = image.naturalWidth * 0.7;
+        const w = measureTextWidth(text, fontSize, family);
+        if (w > maxW) fontSize *= maxW / w;
+        const finalW = measureTextWidth(text, fontSize, family);
+        const anchor = signAnchorY ?? image.naturalHeight * 0.4;
+        beginAction();
+        const el: TextElement = {
+          id: `t${Date.now()}`,
+          kind: "text",
+          text,
+          x: Math.max(0, (image.naturalWidth - finalW) / 2),
+          y: Math.max(
+            image.naturalHeight * 0.02,
+            anchor - image.naturalHeight * 0.03 - fontSize
+          ),
+          fontSize,
+          rotation: 0,
+          ...look.patch,
+        };
+        setElements((els) => [...els, el]);
+        setSelectedId(el.id);
+        setNewText("");
+        return;
       }
       commit(lookTarget.id, lookPatch(lookTarget, look, ipp));
       setSelectedId(lookTarget.id);
@@ -1750,7 +1779,7 @@ export default function DesignStep({
           )}
         </div>
 
-        {lookTarget && (
+        {(
           <div>
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-base font-bold tracking-tight text-zinc-900">
@@ -1769,7 +1798,7 @@ export default function DesignStep({
             <div className="mt-2 flex overflow-x-auto pb-1">
             <div className="mx-auto flex gap-3">
               {SIGN_LOOKS.map((look) => {
-                const active = lookIsActive(lookTarget, look);
+                const active = lookTarget ? lookIsActive(lookTarget, look) : false;
                 return (
                   <button
                     key={look.id}
@@ -1799,13 +1828,13 @@ export default function DesignStep({
                             Math.min(
                               19,
                               Math.round(
-                                175 / (lookTarget.text || "Your Sign").length
+                                175 / (lookTarget?.text || "Your Sign").length
                               )
                             )
                           )}px`,
                         }}
                       >
-                        {lookTarget.text || "Your Sign"}
+                        {lookTarget?.text || "Your Sign"}
                       </span>
                     </div>
                     <div className="mt-1.5 flex items-center gap-1.5 px-0.5 text-sm font-semibold text-zinc-900">
