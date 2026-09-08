@@ -464,9 +464,7 @@ export default function DesignStep({
       // One-view rule: the stage fills exactly the viewport space below the
       // preset row (64px reserved for the bar under the canvas).
       setMaxH(
-        customerMode
-          ? Math.max(360, window.innerHeight - el.getBoundingClientRect().top - 64)
-          : MAX_H
+        Math.max(360, window.innerHeight - el.getBoundingClientRect().top - 64)
       );
     };
     update();
@@ -566,7 +564,6 @@ export default function DesignStep({
 
   // Preload the look fonts so card previews and applies render real lettering
   useEffect(() => {
-    if (!customerMode) return;
     for (const l of SIGN_LOOKS) {
       if (l.googleName) {
         void loadGoogleFont(l.googleName).then(() =>
@@ -1753,7 +1750,7 @@ export default function DesignStep({
           )}
         </div>
 
-        {customerMode && lookTarget && (
+        {lookTarget && (
           <div>
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-base font-bold tracking-tight text-zinc-900">
@@ -1762,10 +1759,12 @@ export default function DesignStep({
                   tap to try it on your building
                 </span>
               </span>
-              <span className="hidden truncate text-sm text-zinc-500 md:block">
-                Nothing is final — play around. Prefer we handle it? We&apos;ll
-                design it together live on a quick call.
-              </span>
+              {customerMode && (
+                <span className="hidden truncate text-sm text-zinc-500 md:block">
+                  Nothing is final — play around. Prefer we handle it?
+                  We&apos;ll design it together live on a quick call.
+                </span>
+              )}
             </div>
             <div className="mt-2 flex overflow-x-auto pb-1">
             <div className="mx-auto flex gap-3">
