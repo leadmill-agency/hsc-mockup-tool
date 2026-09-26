@@ -71,6 +71,8 @@ interface Props {
   customerEmail?: string;
   /** Customer's reference image (staff): enables crop-and-insert. */
   referenceSrc?: string | null;
+  /** Attach a reference from inside the design step (one-click split). */
+  onReferenceChange?: (src: string) => void;
   /** Public visitors have no email on file — the proposal button asks for one
    *  and reports it here so it sticks to the project (email-gated proposal). */
   onCustomerEmail?: (email: string) => void;
@@ -572,6 +574,7 @@ export default function DesignStep({
   customerMode,
   customerEmail,
   referenceSrc,
+  onReferenceChange,
   onCustomerEmail,
   businessName,
   signAnchorY,
@@ -629,6 +632,7 @@ export default function DesignStep({
   const [cropOpen, setCropOpen] = useState(false);
   // "split into pieces": AI decomposition of the reference image
   const [splitting, setSplitting] = useState(false);
+  const refPickRef = useRef<HTMLInputElement>(null);
   const [splitNotes, setSplitNotes] = useState<string | null>(null);
   const [emailAsk, setEmailAsk] = useState(false);
   const [emailDraft, setEmailDraft] = useState("");
@@ -713,15 +717,16 @@ export default function DesignStep({
     );
   };
 
-  const splitReference = async () => {
-    if (!referenceSrc || splitting) return;
+  const splitReference = async (src?: string) => {
+    const image = src ?? referenceSrc;
+    if (!image || splitting) return;
     setSplitting(true);
     setSplitNotes(null);
     try {
       const res = await fetch("/api/recreate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ image: referenceSrc }),
+        body: JSON.stringify({ image }),
       });
       const data = (await res.json()) as RecreateSpec & { error?: string };
       if (!res.ok) {
@@ -1557,23 +1562,50 @@ export default function DesignStep({
           >
             Upload logo
           </button>
-          {!customerMode && referenceSrc && (
+          {!customerMode && (
             <>
               <button
-                onClick={() => void splitReference()}
+                onClick={() => {
+                  if (referenceSrc) void splitReference();
+                  else refPickRef.current?.click();
+                }}
                 disabled={splitting}
-                title="AI reads the reference and rebuilds the lettering as real, priced pieces"
+                title="Pick the customer's AI image or inspo photo — AI rebuilds the lettering as real, priced pieces"
                 className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40"
               >
-                {splitting ? "Reading the sign…" : "Split into pieces"}
+                {splitting
+                  ? "Reading the sign…"
+                  : referenceSrc
+                    ? "Split into pieces"
+                    : "AI image → pieces…"}
               </button>
-              <button
-                onClick={() => setCropOpen(true)}
-                title="Crop the sign out of the customer's reference image and place it on their photo as one image"
-                className={tb.btn}
-              >
-                Insert from reference
-              </button>
+              {referenceSrc && (
+                <button
+                  onClick={() => setCropOpen(true)}
+                  title="Crop the sign out of the customer's reference image and place it on their photo as one image"
+                  className={tb.btn}
+                >
+                  Insert from reference
+                </button>
+              )}
+              <input
+                ref={refPickRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file || !/^image\//.test(file.type)) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const src = reader.result as string;
+                    onReferenceChange?.(src);
+                    void splitReference(src);
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
             </>
           )}
           <button

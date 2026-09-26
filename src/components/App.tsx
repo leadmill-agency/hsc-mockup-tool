@@ -784,6 +784,7 @@ export default function App({
             customerMode={customerUX}
             customerEmail={customer?.email}
             referenceSrc={referenceSrc}
+            onReferenceChange={setReferenceSrc}
             onCustomerEmail={(email) =>
               setCustomer((c) => ({
                 email,
