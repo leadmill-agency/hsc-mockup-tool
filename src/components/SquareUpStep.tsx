@@ -8,6 +8,8 @@ interface Props {
   initialParams: SquareParams;
   onApply: (corrected: HTMLImageElement, params: SquareParams) => void;
   onReplacePhoto: () => void;
+  /** Staff fast path: use the photo as-is, no bake, straight to sizing. */
+  onSkip?: () => void;
   /** Friendlier copy and brand accents for the customer link. */
   customerMode?: boolean;
 }
@@ -40,6 +42,7 @@ export default function SquareUpStep({
   initialParams,
   onApply,
   onReplacePhoto,
+  onSkip,
   customerMode,
 }: Props) {
   const [params, setParams] = useState<SquareParams>(initialParams);
@@ -329,6 +332,15 @@ export default function SquareUpStep({
                 ? "Looks good — continue"
                 : "Apply"}
           </button>
+          {onSkip && (
+            <button
+              onClick={onSkip}
+              title="Use the photo exactly as shot — fastest path to designing"
+              className="rounded-xl border border-blue-600/50 px-4 py-2.5 font-semibold text-blue-600 transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            >
+              Skip — looks straight
+            </button>
+          )}
           <button
             onClick={() => {
               setParams(DEFAULT_SQUARE);

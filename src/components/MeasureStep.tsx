@@ -486,6 +486,24 @@ export default function MeasureStep({
           >
             Back
           </button>
+          {!customerMode && !ipp && (
+            <button
+              onClick={() => {
+                onChange({
+                  references: measurement.references.map((r) =>
+                    r.kind === "width"
+                      ? { ...r, feet: 25, inches: 0, placed: true }
+                      : r
+                  ),
+                });
+                onNext();
+              }}
+              title="Typical strip-center storefront — refine before the proposal goes out"
+              className="rounded-xl border border-blue-600/50 px-4 py-2.5 font-semibold text-blue-600 transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            >
+              Assume 25 ft — design now
+            </button>
+          )}
           <button
             onClick={onNext}
             disabled={!ipp}

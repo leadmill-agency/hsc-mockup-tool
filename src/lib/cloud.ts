@@ -20,6 +20,7 @@ export interface CloudState {
   step: string;
   originalUrl?: string;
   correctedUrl?: string;
+  referenceUrl?: string;
   customer?: CustomerInfo;
 }
 
@@ -38,6 +39,7 @@ export interface SavePayload {
   thumbnail?: string;
   originalSrc: string;
   correctedSrc?: string;
+  referenceSrc?: string;
   squareParams: SquareParams;
   measurement: Measurement | null;
   elements: SignElement[];
@@ -91,6 +93,11 @@ export async function saveProjectCloud(p: SavePayload): Promise<void> {
     : isRemote(p.correctedSrc)
       ? toPath(p.correctedSrc)
       : await uploadAsset(`projects/${p.id}/corrected.png`, p.correctedSrc);
+  const referenceUrl = !p.referenceSrc
+    ? undefined
+    : isRemote(p.referenceSrc)
+      ? toPath(p.referenceSrc)
+      : await uploadAsset(`projects/${p.id}/reference.png`, p.referenceSrc);
 
   const elements = await Promise.all(
     p.elements.map(async (el) => {
@@ -116,6 +123,7 @@ export async function saveProjectCloud(p: SavePayload): Promise<void> {
     step: p.step,
     originalUrl,
     correctedUrl,
+    referenceUrl,
     customer: p.customer,
   };
   const res = await fetch(`/api/projects/${p.id}`, {

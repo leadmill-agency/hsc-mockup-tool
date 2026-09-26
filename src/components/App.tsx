@@ -56,6 +56,68 @@ function Wordmark({ small }: { small?: boolean }) {
   );
 }
 
+/** The customer's inspiration image (AI mockup, competitor photo, sketch)
+ *  pinned beside the canvas so sales can match taste without a designer. */
+function ReferenceCard({
+  src,
+  onChange,
+}: {
+  src: string | null;
+  onChange: (src: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pick = (file: File | undefined) => {
+    if (!file || !/^image\//.test(file.type)) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(24,24,27,0.05),0_8px_24px_-16px_rgba(24,24,27,0.15)] ring-1 ring-zinc-200">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-sm font-bold tracking-tight text-zinc-900">
+          Customer reference
+        </h3>
+        {src && (
+          <button
+            onClick={() => onChange(null)}
+            className="text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      {src ? (
+        <button
+          onClick={() => inputRef.current?.click()}
+          title="Click to replace"
+          className="mt-2 block w-full overflow-hidden rounded-lg ring-1 ring-zinc-200"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="Customer reference" className="w-full" />
+        </button>
+      ) : (
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="mt-2 w-full rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-sm font-medium text-zinc-500 transition-colors hover:border-blue-500 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        >
+          + Attach their inspo — AI mockup, photo, sketch
+        </button>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          pick(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
 const MeasureStep = dynamic(() => import("@/components/MeasureStep"), { ssr: false });
 const DesignStep = dynamic(() => import("@/components/DesignStep"), { ssr: false });
 
@@ -89,6 +151,8 @@ export default function App({
   // asked on the welcome screen; seeds the auto-placed sign in DesignStep
   const [businessName, setBusinessName] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
+  // customer's inspiration/AI reference image, pinned beside the canvas
+  const [referenceSrc, setReferenceSrc] = useState<string | null>(null);
   const [projects, setProjects] = useState<ListedProject[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
@@ -209,12 +273,14 @@ export default function App({
         step,
         customer: customer ?? undefined,
       };
+      const referenceForSave = referenceSrc ?? undefined;
       try {
         // cloud first — projects follow the user across devices
         await saveProjectCloud({
           ...base,
           originalSrc: original.src,
           correctedSrc: corrected?.src,
+          referenceSrc: referenceForSave,
         });
         refreshProjects();
       } catch {
@@ -249,6 +315,7 @@ export default function App({
     elements,
     step,
     customer,
+    referenceSrc,
     loadingProject,
     refreshProjects,
   ]);
@@ -263,6 +330,7 @@ export default function App({
     );
     setOriginal(null);
     setCorrected(null);
+    setReferenceSrc(null);
     setMeasurement(null);
     setElementsState([]);
     setSquareParams(DEFAULT_SQUARE);
@@ -272,6 +340,7 @@ export default function App({
   };
 
   const applyLoaded = (loaded: {
+    referenceUrl?: string;
     id: string;
     name: string;
     original: HTMLImageElement | null;
@@ -283,6 +352,7 @@ export default function App({
     customer?: CustomerInfo | null;
   }) => {
     setCustomer(loaded.customer ?? null);
+    setReferenceSrc(loaded.referenceUrl ?? null);
     setProjectId(loaded.id);
     setProjectName(loaded.name);
     setOriginal(loaded.original);
@@ -320,6 +390,7 @@ export default function App({
           elements: c.state.elements ?? [],
           step: c.state.step,
           customer: c.state.customer ?? null,
+          referenceUrl: c.state.referenceUrl,
         });
         return;
       }
@@ -671,6 +742,18 @@ export default function App({
               setStep("measure");
             }}
             onReplacePhoto={() => setStep("upload")}
+            onSkip={
+              customerUX
+                ? undefined
+                : () => {
+                    setSquareParams(DEFAULT_SQUARE);
+                    setCorrected(original);
+                    setMeasurement(defaultMeasurement(original));
+                    setElementsState([]);
+                    resetHistory();
+                    setStep("measure");
+                  }
+            }
           />
         )}
 
@@ -715,13 +798,21 @@ export default function App({
             onProposalSent={(to) => setSentTo(to)}
             onBack={() => setStep("measure")}
             sidebar={
-              <PricePanel
-                elements={elements}
-                ipp={ipp}
-                cfg={pricingCfg}
-                setCfg={(updater) => setPricingCfg((c) => updater(c))}
-                customer={customerUX}
-              />
+              <div className="w-full shrink-0 space-y-4 lg:w-80">
+                <PricePanel
+                  elements={elements}
+                  ipp={ipp}
+                  cfg={pricingCfg}
+                  setCfg={(updater) => setPricingCfg((c) => updater(c))}
+                  customer={customerUX}
+                />
+                {!customerUX && (
+                  <ReferenceCard
+                    src={referenceSrc}
+                    onChange={setReferenceSrc}
+                  />
+                )}
+              </div>
             }
           />
         )}

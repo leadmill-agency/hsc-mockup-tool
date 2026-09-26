@@ -774,16 +774,44 @@ export default function DesignStep({
         const z = st?.scaleX() ?? 1;
         const ox = st?.x() ?? 0;
         const oy = st?.y() ?? 0;
+        // magnetic alignment: snap this element's center to the photo's
+        // center line and to other elements' centers, so stacked lockups
+        // come out production-straight without pixel nudging
+        let lx = (pos.x - ox) / z;
+        let ly = (pos.y - oy) / z;
+        const T = 8 / z; // ~8 screen px
+        const xTargets = [(image.naturalWidth * scale) / 2];
+        const yTargets: number[] = [];
+        for (const o of elements) {
+          if (o.id === el.id) continue;
+          const os = elementStageSize(o);
+          xTargets.push(o.x * scale + os.w / 2);
+          yTargets.push(o.y * scale + os.h / 2);
+        }
+        const myCx = lx + size.w / 2;
+        const myCy = ly + size.h / 2;
+        for (const t of xTargets) {
+          if (Math.abs(myCx - t) < T) {
+            lx = t - size.w / 2;
+            break;
+          }
+        }
+        for (const t of yTargets) {
+          if (Math.abs(myCy - t) < T) {
+            ly = t - size.h / 2;
+            break;
+          }
+        }
         const clamp = (v: number, lo: number, hi: number) =>
           Math.min(hi, Math.max(lo, v));
         return {
           x: clamp(
-            pos.x,
+            lx * z + ox,
             (MIN_VISIBLE - size.w) * z + ox,
             (stageW - MIN_VISIBLE) * z + ox
           ),
           y: clamp(
-            pos.y,
+            ly * z + oy,
             (MIN_VISIBLE - size.h) * z + oy,
             (stageH - MIN_VISIBLE) * z + oy
           ),
