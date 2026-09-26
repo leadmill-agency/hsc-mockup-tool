@@ -53,6 +53,7 @@ import {
   SignLook,
 } from "@/lib/looks";
 import { renderSpecDrawing } from "@/lib/specDrawing";
+import { RecreateSpec, specToElements } from "@/lib/recreate";
 
 interface Props {
   image: HTMLImageElement;
@@ -626,6 +627,9 @@ export default function DesignStep({
   // Email-gated proposal: a showroom dialog collects the address (no native
   // prompt at the conversion moment) and carries send errors inline.
   const [cropOpen, setCropOpen] = useState(false);
+  // "split into pieces": AI decomposition of the reference image
+  const [splitting, setSplitting] = useState(false);
+  const [splitNotes, setSplitNotes] = useState<string | null>(null);
   const [emailAsk, setEmailAsk] = useState(false);
   const [emailDraft, setEmailDraft] = useState("");
   const [emailErr, setEmailErr] = useState<string | null>(null);
@@ -682,12 +686,63 @@ export default function DesignStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerMode, businessName, elements.length]);
 
+  /** Instantiate native elements from an extraction spec (shared by the API
+   *  path and the dev hook). */
+  const applyRecreateSpec = async (spec: RecreateSpec): Promise<void> => {
+    const els = await specToElements(
+      spec,
+      image.naturalWidth,
+      image.naturalHeight,
+      ipp,
+      signAnchorY
+    );
+    if (!els.length) {
+      setSplitNotes("Couldn't find any lettering in the reference.");
+      return;
+    }
+    beginAction();
+    setElements((prev) => [...prev, ...els]);
+    setSelectedId(els[0].id);
+    const marks = (spec.marks ?? [])
+      .map((m) => m.description)
+      .filter(Boolean) as string[];
+    setSplitNotes(
+      marks.length
+        ? `Lettering rebuilt as ${els.length} piece${els.length > 1 ? "s" : ""}. Also spotted: ${marks.join("; ")} — use “Insert from reference” to crop those in.`
+        : `Lettering rebuilt as ${els.length} piece${els.length > 1 ? "s" : ""} — sized, priced, and editable.`
+    );
+  };
+
+  const splitReference = async () => {
+    if (!referenceSrc || splitting) return;
+    setSplitting(true);
+    setSplitNotes(null);
+    try {
+      const res = await fetch("/api/recreate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ image: referenceSrc }),
+      });
+      const data = (await res.json()) as RecreateSpec & { error?: string };
+      if (!res.ok) {
+        setSplitNotes(data.error ?? "Something went wrong reading the reference.");
+        return;
+      }
+      await applyRecreateSpec(data);
+    } catch {
+      setSplitNotes("Something went wrong reading the reference — try again.");
+    } finally {
+      setSplitting(false);
+    }
+  };
+
   // dev-only: lets automated checks render the spec drawing without a send
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
     const w = window as unknown as Record<string, unknown>;
     w.__renderSpec = () => renderSpecDrawing(elements, ipp);
     w.__els = elements;
+    w.__applySpec = (spec: RecreateSpec) => applyRecreateSpec(spec);
   }, [elements, ipp]);
 
   // Preload the look fonts so card previews and applies render real lettering
@@ -1503,13 +1558,23 @@ export default function DesignStep({
             Upload logo
           </button>
           {!customerMode && referenceSrc && (
-            <button
-              onClick={() => setCropOpen(true)}
-              title="Crop the sign out of the customer's reference image and place it on their photo"
-              className={tb.btn}
-            >
-              Insert from reference
-            </button>
+            <>
+              <button
+                onClick={() => void splitReference()}
+                disabled={splitting}
+                title="AI reads the reference and rebuilds the lettering as real, priced pieces"
+                className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40"
+              >
+                {splitting ? "Reading the sign…" : "Split into pieces"}
+              </button>
+              <button
+                onClick={() => setCropOpen(true)}
+                title="Crop the sign out of the customer's reference image and place it on their photo as one image"
+                className={tb.btn}
+              >
+                Insert from reference
+              </button>
+            </>
           )}
           <button
             onClick={addPanel}
@@ -1945,6 +2010,18 @@ export default function DesignStep({
             </>
           )}
         </div>
+
+        {splitNotes && (
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-blue-600/30 bg-blue-50 px-4 py-2.5 text-sm leading-6 text-zinc-800">
+            <span>{splitNotes}</span>
+            <button
+              onClick={() => setSplitNotes(null)}
+              className="shrink-0 text-xs font-medium text-zinc-500 hover:text-zinc-900"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {(
           <div>

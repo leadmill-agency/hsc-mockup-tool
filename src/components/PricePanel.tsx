@@ -165,6 +165,20 @@ export default function PricePanel({ elements, ipp, cfg, setCfg, customer }: Pro
             <span className="tabular-nums text-zinc-900">{wireways}</span>
           </div>
           <div className="space-y-1 border-t border-zinc-200 pt-2">
+            {/* exact per-piece math: count × height × $/inch, to the dollar */}
+            {pieces.map((p, i) => (
+              <div
+                key={`cost-${i}`}
+                className="flex justify-between gap-2 text-xs text-zinc-500"
+              >
+                <span className="truncate">
+                  {p.label} · {p.count} × {formatFeetInches(p.heightInches)}
+                </span>
+                <span className="whitespace-nowrap tabular-nums">
+                  {formatUsd(p.count * p.heightInches * cfg.coefficient, true)}
+                </span>
+              </div>
+            ))}
             <div className="flex justify-between text-zinc-600">
               <span>Pieces cost</span>
               <span className="tabular-nums">{formatUsd(pricing.pieceCost, true)}</span>
