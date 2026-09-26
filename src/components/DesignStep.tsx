@@ -68,6 +68,8 @@ interface Props {
   pricingCfg: PricingConfig;
   customerMode?: boolean;
   customerEmail?: string;
+  /** Customer's reference image (staff): enables crop-and-insert. */
+  referenceSrc?: string | null;
   /** Public visitors have no email on file — the proposal button asks for one
    *  and reports it here so it sticks to the project (email-gated proposal). */
   onCustomerEmail?: (email: string) => void;
@@ -430,6 +432,130 @@ interface View {
   y: number;
 }
 
+/** Drag a box around the sign in the reference image; the selection is
+ *  cropped at full resolution and inserted onto the photo as artwork. */
+function CropModal({
+  src,
+  onCancel,
+  onConfirm,
+}: {
+  src: string;
+  onCancel: () => void;
+  onConfirm: (dataUrl: string) => void;
+}) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [box, setBox] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+
+  const rel = (e: React.PointerEvent) => {
+    const r = imgRef.current!.getBoundingClientRect();
+    return {
+      x: Math.min(Math.max(e.clientX - r.left, 0), r.width),
+      y: Math.min(Math.max(e.clientY - r.top, 0), r.height),
+    };
+  };
+
+  const confirm = () => {
+    const img = imgRef.current;
+    if (!img || !box || box.w < 8 || box.h < 8) return;
+    const disp = img.getBoundingClientRect();
+    const sx = img.naturalWidth / disp.width;
+    const sy = img.naturalHeight / disp.height;
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(box.w * sx));
+    c.height = Math.max(1, Math.round(box.h * sy));
+    c.getContext("2d")!.drawImage(
+      img,
+      box.x * sx,
+      box.y * sy,
+      box.w * sx,
+      box.h * sy,
+      0,
+      0,
+      c.width,
+      c.height
+    );
+    onConfirm(c.toDataURL("image/png"));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/60 px-4 backdrop-blur-sm">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-[0_2px_8px_rgba(24,24,27,0.08),0_24px_64px_-16px_rgba(24,24,27,0.35)]">
+        <h2 className="text-lg font-extrabold tracking-tight text-zinc-900">
+          Crop the sign out of the reference
+        </h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          Drag a box around just the sign — it gets placed on the customer&apos;s
+          photo, and a plain background is removed automatically.
+        </p>
+        <div
+          className="relative mt-3 inline-block cursor-crosshair touch-none select-none"
+          onPointerDown={(e) => {
+            (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+            const pt = rel(e);
+            startRef.current = pt;
+            setBox({ x: pt.x, y: pt.y, w: 0, h: 0 });
+          }}
+          onPointerMove={(e) => {
+            const st = startRef.current;
+            if (!st) return;
+            const pt = rel(e);
+            setBox({
+              x: Math.min(st.x, pt.x),
+              y: Math.min(st.y, pt.y),
+              w: Math.abs(pt.x - st.x),
+              h: Math.abs(pt.y - st.y),
+            });
+          }}
+          onPointerUp={() => {
+            startRef.current = null;
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={imgRef}
+            src={src}
+            alt="Customer reference"
+            draggable={false}
+            className="max-h-[60vh] w-auto max-w-full rounded-lg"
+          />
+          {box && box.w > 2 && (
+            <div
+              className="pointer-events-none absolute border-2 border-blue-500 bg-blue-500/10"
+              style={{
+                left: box.x,
+                top: box.y,
+                width: box.w,
+                height: box.h,
+              }}
+            />
+          )}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={confirm}
+            disabled={!box || box.w < 8 || box.h < 8}
+            className="rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)] transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-40"
+          >
+            Insert selection
+          </button>
+          <button
+            onClick={onCancel}
+            className="rounded-xl px-4 py-2.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DesignStep({
   image,
   ipp,
@@ -444,6 +570,7 @@ export default function DesignStep({
   pricingCfg,
   customerMode,
   customerEmail,
+  referenceSrc,
   onCustomerEmail,
   businessName,
   signAnchorY,
@@ -498,6 +625,7 @@ export default function DesignStep({
   const [night, setNight] = useState(false);
   // Email-gated proposal: a showroom dialog collects the address (no native
   // prompt at the conversion moment) and carries send errors inline.
+  const [cropOpen, setCropOpen] = useState(false);
   const [emailAsk, setEmailAsk] = useState(false);
   const [emailDraft, setEmailDraft] = useState("");
   const [emailErr, setEmailErr] = useState<string | null>(null);
@@ -656,34 +784,36 @@ export default function DesignStep({
     setSelectedId(el.id);
   };
 
+  /** Insert artwork (uploaded logo or a crop from the reference image). */
+  const insertLogoSrc = (src: string, widthFrac = 0.28) => {
+    const probe = new Image();
+    probe.onload = () => {
+      const processed = removeUniformBackground(probe);
+      beginAction();
+      const w = image.naturalWidth * widthFrac;
+      const el: LogoElement = {
+        id: `l${Date.now()}`,
+        kind: "logo",
+        src: processed ?? src,
+        originalSrc: src,
+        processedSrc: processed ?? undefined,
+        bgRemoved: processed !== null,
+        x: (image.naturalWidth - w) / 2,
+        y: image.naturalHeight * 0.1,
+        width: w,
+        height: (w * probe.naturalHeight) / probe.naturalWidth,
+        rotation: 0,
+      };
+      setElements((els) => [...els, el]);
+      setSelectedId(el.id);
+    };
+    probe.src = src;
+  };
+
   const addLogo = (file: File | undefined) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const src = reader.result as string;
-      const probe = new Image();
-      probe.onload = () => {
-        const processed = removeUniformBackground(probe);
-        beginAction();
-        const w = image.naturalWidth * 0.28;
-        const el: LogoElement = {
-          id: `l${Date.now()}`,
-          kind: "logo",
-          src: processed ?? src,
-          originalSrc: src,
-          processedSrc: processed ?? undefined,
-          bgRemoved: processed !== null,
-          x: image.naturalWidth * 0.36,
-          y: image.naturalHeight * 0.1,
-          width: w,
-          height: (w * probe.naturalHeight) / probe.naturalWidth,
-          rotation: 0,
-        };
-        setElements((els) => [...els, el]);
-        setSelectedId(el.id);
-      };
-      probe.src = src;
-    };
+    reader.onload = () => insertLogoSrc(reader.result as string, 0.28);
     reader.readAsDataURL(file);
   };
 
@@ -1372,6 +1502,15 @@ export default function DesignStep({
           >
             Upload logo
           </button>
+          {!customerMode && referenceSrc && (
+            <button
+              onClick={() => setCropOpen(true)}
+              title="Crop the sign out of the customer's reference image and place it on their photo"
+              className={tb.btn}
+            >
+              Insert from reference
+            </button>
+          )}
           <button
             onClick={addPanel}
             title="Add a free-standing backer panel (+$400) — size it freely, layer text and logos on top"
@@ -2483,6 +2622,17 @@ export default function DesignStep({
         sidebar
       )}
       </div>
+
+      {cropOpen && referenceSrc && (
+        <CropModal
+          src={referenceSrc}
+          onCancel={() => setCropOpen(false)}
+          onConfirm={(url) => {
+            setCropOpen(false);
+            insertLogoSrc(url, 0.5);
+          }}
+        />
+      )}
 
       {emailAsk && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 px-4 backdrop-blur-sm">

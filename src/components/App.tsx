@@ -783,6 +783,7 @@ export default function App({
             pricingCfg={pricingCfg}
             customerMode={customerUX}
             customerEmail={customer?.email}
+            referenceSrc={referenceSrc}
             onCustomerEmail={(email) =>
               setCustomer((c) => ({
                 email,
