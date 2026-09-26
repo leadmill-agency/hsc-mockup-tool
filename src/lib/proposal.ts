@@ -4,6 +4,7 @@
 // list, item details always expanded. Browser Save-as-PDF is the output path.
 
 import { formatUsd } from "@/lib/pricing";
+import { nearestPantone } from "@/lib/pantone";
 
 export interface ProposalItem {
   label: string;
@@ -121,7 +122,7 @@ export function buildProposalHtml(input: ProposalInput): string {
             (c) => `
           <div class="chip">
             <span class="sw" style="background:${esc(c.hex)}"></span>
-            <span><b>${esc(c.label)}</b><span class="hex">${esc(c.hex)}</span></span>
+            <span><b>${esc(c.label)}</b><span class="pms">≈ ${esc(nearestPantone(c.hex))}</span><span class="hex">${esc(c.hex)}</span></span>
           </div>`
           )
           .join("")}
@@ -191,7 +192,8 @@ export function buildProposalHtml(input: ProposalInput): string {
     border: 1px solid rgba(17,17,19,0.22);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35), 0 1px 2px rgba(17,17,19,0.12); }
   .chip b { display: block; }
-  .chip .hex { display: block; color: #6b6b74; font-size: 11.5px;
+  .chip .pms { display: block; color: #38383f; font-size: 12px; font-weight: 600; }
+  .chip .hex { display: block; color: #9a9aa2; font-size: 10.5px;
     font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; }
   .spec-title { color: #1d4ed8; font-weight: 800; text-decoration: underline;
                 text-transform: uppercase; font-size: 14px; margin: 4px 0 8px; }

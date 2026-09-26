@@ -54,6 +54,7 @@ import {
 } from "@/lib/looks";
 import { renderSpecDrawing } from "@/lib/specDrawing";
 import { RecreateSpec, specToLayout } from "@/lib/recreate";
+import { pantoneLabel } from "@/lib/pantone";
 
 interface Props {
   image: HTMLImageElement;
@@ -1393,17 +1394,17 @@ export default function DesignStep({
 
     const specs = firstText
       ? [
-          { label: "Face", value: `3/16" acrylic (${firstText.fill})` },
+          { label: "Face", value: `3/16" acrylic — ${pantoneLabel(firstText.fill)}` },
           { label: "Backs", value: ".040 aluminum" },
-          { label: "Returns", value: `5" aluminum, painted (${trimName})` },
-          { label: "Trimcap", value: `1" (${trimName})` },
+          { label: "Returns", value: `5" aluminum, painted — ${pantoneLabel(trimName)}` },
+          { label: "Trimcap", value: `1" — ${pantoneLabel(trimName)}` },
           {
             label: "LED",
             value:
               (firstText.lighting ?? "front") === "none"
                 ? "None — non-illuminated"
                 : firstText.ledColor
-                  ? `LED modules (${firstText.ledColor})`
+                  ? `LED modules — ${pantoneLabel(firstText.ledColor)}`
                   : "White LEDs (6500K)",
           },
           {
