@@ -21,16 +21,21 @@ Reply with ONLY a JSON object, no prose, no code fences:
       "ledColor": "#hex of the glow, if lit",
       "signStyle": "letters|cabinet|cloud",
       "raceway": false,
-      "heightRatio": 1.0
+      "heightRatio": 1.0,
+      "bbox": [0.0, 0.0, 1.0, 1.0]
     }
   ],
   "marks": [
-    { "description": "short description of any non-text emblem/logo and where it sits relative to the text" }
+    {
+      "description": "short description of any non-text element: emblem, logo, icon, decorative rule/line, flourish",
+      "bbox": [0.0, 0.0, 1.0, 1.0]
+    }
   ],
-  "notes": "one sentence about the overall arrangement"
+  "notes": "one sentence about the overall arrangement",
+  "scene": "day|dusk|night"
 }
 
-Rules: one entry per visually distinct line of text, in top-to-bottom order. heightRatio is each line's capital-letter height relative to the TALLEST line (tallest = 1.0). signStyle "letters" = individual channel letters; "cabinet" = rectangular lit box behind the whole line; "cloud" = a shaped backer plate hugging the letter outlines. lighting "halo" = letters glow from behind; "front" = the faces themselves glow. raceway = true only if the letters visibly sit on a horizontal mounting box. Use best-judgment hex colors.`;
+Rules: "scene" is the lighting of the reference photo itself (is the sign shown lit at night/dusk, or unlit daytime?). Every "bbox" is [x0, y0, x1, y1] as FRACTIONS (0-1) of the full image, drawn tightly around that element's ink — be as precise as you can, these drive placement. Include decorative rules/lines and every emblem as marks with their own bbox. One text entry per visually distinct line of text, in top-to-bottom order. heightRatio is each line's capital-letter height relative to the TALLEST line (tallest = 1.0). signStyle "letters" = individual channel letters; "cabinet" = rectangular lit box behind the whole line; "cloud" = a shaped backer plate hugging the letter outlines. lighting "halo" = letters glow from behind; "front" = the faces themselves glow. raceway = true only if the letters visibly sit on a horizontal mounting box. Use best-judgment hex colors.`;
 
 const DATA_RE = /^data:(image\/(?:png|jpeg|webp|gif));base64,([\s\S]+)$/;
 

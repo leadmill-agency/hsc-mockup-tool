@@ -6,6 +6,9 @@ interface Props {
   onImage: (img: HTMLImageElement) => void;
   /** Bright-showroom styling for the customer surface. */
   customerMode?: boolean;
+  /** Staff: attach the customer's reference image in the same step. */
+  referenceSrc?: string | null;
+  onReference?: (src: string) => void;
 }
 
 export function loadImageFromFile(
@@ -45,10 +48,23 @@ function CameraIcon({ className }: { className?: string }) {
   );
 }
 
-export default function UploadStep({ onImage, customerMode }: Props) {
+export default function UploadStep({
+  onImage,
+  customerMode,
+  referenceSrc,
+  onReference,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const refInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleReference = (file: File | undefined) => {
+    if (!file || !/^image\//.test(file.type) || !onReference) return;
+    const reader = new FileReader();
+    reader.onload = () => onReference(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleFile = useCallback(
     (file: File | undefined) => {
@@ -132,12 +148,58 @@ export default function UploadStep({ onImage, customerMode }: Props) {
           {error}
         </div>
       )}
+      {!customerMode && onReference && (
+        <div
+          onClick={() => refInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleReference(e.dataTransfer.files[0]);
+          }}
+          className="flex w-full max-w-2xl cursor-pointer items-center gap-4 rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-4 transition-colors hover:border-blue-500"
+          title="The customer's AI mockup, inspo photo, or sketch — drives 'Rebuild from reference' on the design step"
+        >
+          {referenceSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={referenceSrc}
+              alt="Customer reference"
+              className="h-16 w-24 rounded-lg object-cover ring-1 ring-zinc-200"
+            />
+          ) : (
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-lg font-bold text-blue-600">
+              +
+            </span>
+          )}
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-zinc-900">
+              {referenceSrc
+                ? "Customer reference attached — click to replace"
+                : "Customer reference (optional)"}
+            </div>
+            <div className="truncate text-sm text-zinc-500">
+              Their AI mockup, inspo photo, or sketch — the design step can
+              rebuild it as priced pieces
+            </div>
+          </div>
+        </div>
+      )}
       <input
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+      <input
+        ref={refInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          handleReference(e.target.files?.[0]);
+          e.target.value = "";
+        }}
       />
     </div>
   );

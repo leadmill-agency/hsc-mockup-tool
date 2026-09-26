@@ -714,6 +714,8 @@ export default function App({
         {step === "upload" && (
           <UploadStep
             customerMode={customerUX}
+            referenceSrc={referenceSrc}
+            onReference={customerUX ? undefined : setReferenceSrc}
             onImage={(img) => {
               setOriginal(img);
               setCorrected(null);

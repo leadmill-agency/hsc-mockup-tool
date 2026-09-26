@@ -53,7 +53,7 @@ import {
   SignLook,
 } from "@/lib/looks";
 import { renderSpecDrawing } from "@/lib/specDrawing";
-import { RecreateSpec, specToElements } from "@/lib/recreate";
+import { RecreateSpec, specToLayout } from "@/lib/recreate";
 
 interface Props {
   image: HTMLImageElement;
@@ -120,6 +120,8 @@ const ICON = {
   redo: "m16 5 4 4-4 4M20 9H10a6 6 0 0 0 0 12h3",
   sun: "M12 4v1.5M12 18.5V20M4 12h1.5M18.5 12H20M6.3 6.3l1.1 1.1M16.6 16.6l1.1 1.1M6.3 17.7l1.1-1.1M16.6 7.4l1.1-1.1M12 8.25a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5Z",
   moon: "M20 13.2A7.5 7.5 0 0 1 10.8 4 7.5 7.5 0 1 0 20 13.2Z",
+  pipette:
+    "M4 20l.7-3.2 8.6-8.6 2.5 2.5-8.6 8.6L4 20ZM14.9 4.6l1.2-1.2a2 2 0 0 1 2.8 0l1.7 1.7a2 2 0 0 1 0 2.8l-1.2 1.2M13.3 6.2l4.5 4.5",
 };
 
 /** Darken/lighten a #rrggbb color. */
@@ -435,6 +437,36 @@ interface View {
   y: number;
 }
 
+/** Screen eyedropper (Chromium EyeDropper API): pick any pixel — including
+ *  from the reference image — and apply it to a color field. */
+function PipetteButton({
+  onPick,
+  title,
+}: {
+  onPick: (hexColor: string) => void;
+  title: string;
+}) {
+  type ED = new () => { open(): Promise<{ sRGBHex: string }> };
+  const Ctor = (window as unknown as { EyeDropper?: ED }).EyeDropper;
+  if (!Ctor) return null;
+  return (
+    <button
+      onClick={async () => {
+        try {
+          const res = await new Ctor().open();
+          onPick(res.sRGBHex);
+        } catch {
+          // picker cancelled
+        }
+      }}
+      title={title}
+      className="rounded-lg border border-zinc-300 bg-white p-1.5 text-zinc-500 transition-colors hover:border-blue-500 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+    >
+      <StrokeIcon d={ICON.pipette} className="h-4 w-4" />
+    </button>
+  );
+}
+
 /** Drag a box around the sign in the reference image; the selection is
  *  cropped at full resolution and inserted onto the photo as artwork. */
 function CropModal({
@@ -691,49 +723,97 @@ export default function DesignStep({
   }, [customerMode, businessName, elements.length]);
 
   /** Instantiate native elements from an extraction spec (shared by the API
-   *  path and the dev hook). */
-  const applyRecreateSpec = async (spec: RecreateSpec): Promise<void> => {
-    const els = await specToElements(
+   *  path and the dev hook): text lines as TextElements laid out from the
+   *  reference's own geometry, marks auto-cropped in as artwork. */
+  const applyRecreateSpec = async (
+    spec: RecreateSpec,
+    srcOverride?: string
+  ): Promise<void> => {
+    const src = srcOverride ?? referenceSrc ?? null;
+    const refImg = src
+      ? await new Promise<HTMLImageElement | null>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        })
+      : null;
+    const refAspect = refImg
+      ? refImg.naturalWidth / refImg.naturalHeight
+      : 1.6;
+    const layout = await specToLayout(
       spec,
       image.naturalWidth,
       image.naturalHeight,
       ipp,
-      signAnchorY
+      signAnchorY,
+      refAspect
     );
-    if (!els.length) {
+    if (!layout.texts.length) {
       setSplitNotes("Couldn't find any lettering in the reference.");
       return;
     }
+    // crop each located mark out of the reference at full resolution
+    const logoEls: LogoElement[] = [];
+    if (refImg) {
+      layout.marks.forEach((job, i) => {
+        const sx = job.bbox[0] * refImg.naturalWidth;
+        const sy = job.bbox[1] * refImg.naturalHeight;
+        const sw = (job.bbox[2] - job.bbox[0]) * refImg.naturalWidth;
+        const sh = (job.bbox[3] - job.bbox[1]) * refImg.naturalHeight;
+        const c = document.createElement("canvas");
+        c.width = Math.max(2, Math.round(sw));
+        c.height = Math.max(2, Math.round(sh));
+        c.getContext("2d")!.drawImage(refImg, sx, sy, sw, sh, 0, 0, c.width, c.height);
+        const cropped = c.toDataURL("image/png");
+        logoEls.push({
+          id: `l${Date.now() + i}`,
+          kind: "logo",
+          src: cropped,
+          originalSrc: cropped,
+          x: job.x,
+          y: job.y,
+          width: job.width,
+          height: job.height,
+          rotation: 0,
+        });
+      });
+    }
     beginAction();
-    setElements((prev) => [...prev, ...els]);
-    setSelectedId(els[0].id);
-    const marks = (spec.marks ?? [])
-      .map((m) => m.description)
-      .filter(Boolean) as string[];
-    setSplitNotes(
-      marks.length
-        ? `Lettering rebuilt as ${els.length} piece${els.length > 1 ? "s" : ""}. Also spotted: ${marks.join("; ")} — use “Insert from reference” to crop those in.`
-        : `Lettering rebuilt as ${els.length} piece${els.length > 1 ? "s" : ""} — sized, priced, and editable.`
-    );
+    setElements((prev) => [...prev, ...layout.texts, ...logoEls]);
+    setSelectedId(layout.texts[0].id);
+    // match the canvas to the reference's own lighting
+    if (spec.scene === "night" || spec.scene === "dusk") setNight(true);
+    const parts = [
+      `Rebuilt ${layout.texts.length} lettering piece${layout.texts.length > 1 ? "s" : ""}`,
+    ];
+    if (logoEls.length)
+      parts.push(
+        `${logoEls.length} artwork mark${logoEls.length > 1 ? "s" : ""} cropped in from the reference`
+      );
+    let note = parts.join(" + ") + " — everything is sized, priced, and editable.";
+    if (layout.unplacedMarks.length)
+      note += ` Couldn't place: ${layout.unplacedMarks.join("; ")} — use “Crop from reference”.`;
+    setSplitNotes(note);
   };
 
   const splitReference = async (src?: string) => {
-    const image = src ?? referenceSrc;
-    if (!image || splitting) return;
+    const image_ = src ?? referenceSrc;
+    if (!image_ || splitting) return;
     setSplitting(true);
     setSplitNotes(null);
     try {
       const res = await fetch("/api/recreate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ image }),
+        body: JSON.stringify({ image: image_ }),
       });
       const data = (await res.json()) as RecreateSpec & { error?: string };
       if (!res.ok) {
         setSplitNotes(data.error ?? "Something went wrong reading the reference.");
         return;
       }
-      await applyRecreateSpec(data);
+      await applyRecreateSpec(data, image_ ?? undefined);
     } catch {
       setSplitNotes("Something went wrong reading the reference — try again.");
     } finally {
@@ -1576,8 +1656,8 @@ export default function DesignStep({
                 {splitting
                   ? "Reading the sign…"
                   : referenceSrc
-                    ? "Split into pieces"
-                    : "AI image → pieces…"}
+                    ? "Rebuild from reference"
+                    : "Rebuild from AI image…"}
               </button>
               {referenceSrc && (
                 <button
@@ -1585,7 +1665,7 @@ export default function DesignStep({
                   title="Crop the sign out of the customer's reference image and place it on their photo as one image"
                   className={tb.btn}
                 >
-                  Insert from reference
+                  Crop from reference
                 </button>
               )}
               <input
@@ -1727,6 +1807,10 @@ export default function DesignStep({
                 }
                 className={tb.color}
               />
+              <PipetteButton
+                title="Pick the glow color from the reference image"
+                onPick={(c) => commit(selected.id, { ledColor: c })}
+              />
             </label>
           )}
           {showAdvanced && selected?.kind === "text" && (
@@ -1783,6 +1867,10 @@ export default function DesignStep({
                   onChange={(e) => commit(selected.id, { fill: e.target.value })}
                   className={tb.color}
                 />
+                <PipetteButton
+                  title="Pick the face color from the reference image"
+                  onPick={(c) => commit(selected.id, { fill: c })}
+                />
               </label>
               {isBoxStyle(selected) && (
                 <label className={tb.label}>
@@ -1795,6 +1883,10 @@ export default function DesignStep({
                       commit(selected.id, { backerColor: e.target.value })
                     }
                     className={tb.color}
+                  />
+                  <PipetteButton
+                    title="Pick the face color from the reference image"
+                    onPick={(c) => commit(selected.id, { backerColor: c })}
                   />
                 </label>
               )}
@@ -1809,6 +1901,10 @@ export default function DesignStep({
                     commit(selected.id, { trimColor: e.target.value })
                   }
                   className={tb.color}
+                />
+                <PipetteButton
+                  title="Pick the trim color from the reference image"
+                  onPick={(c) => commit(selected.id, { trimColor: c })}
                 />
               </label>
               )}
