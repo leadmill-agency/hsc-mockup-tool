@@ -53,7 +53,19 @@ import {
   SignLook,
 } from "@/lib/looks";
 import { renderSpecDrawing } from "@/lib/specDrawing";
-import { RecreateSpec, specToLayout } from "@/lib/recreate";
+import {
+  clipLinesAroundMarks,
+  cropForDecompose,
+  enforceLineOrder,
+  loadRefImage,
+  locateLineBox,
+  locateMarkBox,
+  mergeRowLines,
+  RecreateSpec,
+  refineSpecBoxes,
+  specFromCrop,
+  specToLayout,
+} from "@/lib/recreate";
 import { pantoneLabel } from "@/lib/pantone";
 
 interface Props {
@@ -742,8 +754,12 @@ export default function DesignStep({
     const refAspect = refImg
       ? refImg.naturalWidth / refImg.naturalHeight
       : 1.6;
+    // AI boxes are approximate — tighten them to the actual ink first
+    const refined = mergeRowLines(
+      clipLinesAroundMarks(refImg ? refineSpecBoxes(spec, refImg) : spec)
+    );
     const layout = await specToLayout(
-      spec,
+      refined,
       image.naturalWidth,
       image.naturalHeight,
       ipp,
@@ -757,7 +773,7 @@ export default function DesignStep({
     // crop each located mark out of the reference at full resolution
     const logoEls: LogoElement[] = [];
     if (refImg) {
-      layout.marks.forEach((job, i) => {
+      for (const [i, job] of layout.marks.entries()) {
         const sx = job.bbox[0] * refImg.naturalWidth;
         const sy = job.bbox[1] * refImg.naturalHeight;
         const sw = (job.bbox[2] - job.bbox[0]) * refImg.naturalWidth;
@@ -767,21 +783,32 @@ export default function DesignStep({
         c.height = Math.max(2, Math.round(sh));
         c.getContext("2d")!.drawImage(refImg, sx, sy, sw, sh, 0, 0, c.width, c.height);
         const cropped = c.toDataURL("image/png");
+        const probe = await new Promise<HTMLImageElement | null>((resolve) => {
+          const img2 = new Image();
+          img2.onload = () => resolve(img2);
+          img2.onerror = () => resolve(null);
+          img2.src = cropped;
+        });
+        const processed = probe ? removeUniformBackground(probe) : null;
         logoEls.push({
           id: `l${Date.now() + i}`,
           kind: "logo",
-          src: cropped,
+          src: processed ?? cropped,
           originalSrc: cropped,
+          processedSrc: processed ?? undefined,
+          bgRemoved: processed !== null,
           x: job.x,
           y: job.y,
           width: job.width,
           height: job.height,
           rotation: 0,
         });
-      });
+      }
     }
     beginAction();
-    setElements((prev) => [...prev, ...layout.texts, ...logoEls]);
+    // A rebuild recreates the whole sign from the reference — replace what's
+    // on the canvas instead of stacking a second copy (undo restores it).
+    setElements(() => [...layout.texts, ...logoEls]);
     setSelectedId(layout.texts[0].id);
     // match the canvas to the reference's own lighting
     if (spec.scene === "night" || spec.scene === "dusk") setNight(true);
@@ -804,17 +831,59 @@ export default function DesignStep({
     setSplitting(true);
     setSplitNotes(null);
     try {
+      // Pass 1: locate the sign band, then decompose a tight crop of it —
+      // fractional boxes are far more precise inside the crop than on a
+      // full screenshot. Any locate failure falls back to the full image.
+      let decomposeImage = image_;
+      let cropBox: [number, number, number, number] | null = null;
+      const refImg = await loadRefImage(image_);
+      if (refImg) {
+        try {
+          const locRes = await fetch("/api/recreate", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ image: image_, stage: "locate" }),
+          });
+          const loc = (await locRes.json()) as { bbox?: number[] };
+          const crop =
+            locRes.ok && loc.bbox ? cropForDecompose(refImg, loc.bbox) : null;
+          if (crop) {
+            decomposeImage = crop.dataUrl;
+            cropBox = crop.box;
+          }
+        } catch {
+          // locate is best-effort — decompose the full image instead
+        }
+      }
       const res = await fetch("/api/recreate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ image: image_ }),
+        body: JSON.stringify({ image: decomposeImage }),
       });
       const data = (await res.json()) as RecreateSpec & { error?: string };
       if (!res.ok) {
         setSplitNotes(data.error ?? "Something went wrong reading the reference.");
         return;
       }
-      await applyRecreateSpec(data, image_ ?? undefined);
+      let spec = cropBox ? specFromCrop(data, cropBox) : data;
+      // Pass 3: zoomed per-piece passes, in parallel — decompose boxes are
+      // too coarse to crop emblems from or place lines with.
+      if (refImg && (spec.marks?.length || spec.lines?.length)) {
+        const [lines, marks] = await Promise.all([
+          Promise.all(
+            (spec.lines ?? []).map((ln) => locateLineBox(refImg, ln))
+          ),
+          Promise.all(
+            (spec.marks ?? []).map((mk) => locateMarkBox(refImg, mk, cropBox))
+          ),
+        ]);
+        spec = {
+          ...spec,
+          lines: enforceLineOrder(spec.lines ?? [], lines),
+          marks,
+        };
+      }
+      await applyRecreateSpec(spec, image_ ?? undefined);
     } catch {
       setSplitNotes("Something went wrong reading the reference — try again.");
     } finally {
